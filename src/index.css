@@ -1,0 +1,70 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Poppins:wght@400;500;600;700&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --color-primary: #4F46E5;
+  --color-secondary: #7C3AED;
+  --color-accent: #06B6D4;
+  --color-success: #22C55E;
+  --color-warning: #F59E0B;
+  --color-error: #EF4444;
+
+  /* Colors */
+  --color-bg-light: #F8FAFC;
+  --color-card-light: #FFFFFF;
+  --color-border-light: #E2E8F0;
+  
+  --color-bg-dark: #0F172A;
+  --color-card-dark: #1E293B;
+  --color-border-dark: #334155;
+
+  /* Typography */
+  --font-sans: "Poppins", "Inter", sans-serif;
+  
+  /* Border Radius */
+  --radius-card: 20px;
+  --radius-btn: 14px;
+  --radius-input: 12px;
+  --radius-modal: 24px;
+  --radius-chart: 20px;
+}
+
+@layer base {
+  :root {
+    --bg-color: var(--color-bg-light);
+    --card-bg: var(--color-card-light);
+    --border-color: var(--color-border-light);
+    --text-primary: #0F172A;
+    --text-secondary: #64748B;
+  }
+  
+  .dark {
+    --bg-color: var(--color-bg-dark);
+    --card-bg: var(--color-card-dark);
+    --border-color: var(--color-border-dark);
+    --text-primary: #F8FAFC;
+    --text-secondary: #CBD5E1;
+  }
+
+  body {
+    background-color: var(--bg-color);
+    color: var(--text-primary);
+    font-family: var(--font-sans);
+    transition-property: color, background-color, border-color, text-decoration-color, fill, stroke;
+    transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+    transition-duration: 300ms;
+  }
+
+  html {
+    scroll-behavior: smooth;
+  }
+}
+
+@layer utilities {
+  .shadow-soft {
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
+  }
+  .dark .shadow-soft {
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+  }
+}
