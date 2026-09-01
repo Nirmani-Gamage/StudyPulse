@@ -22,11 +22,13 @@ const authRoutes = require("./routes/authRoutes");
 const userRoutes = require("./routes/userRoutes");
 const subjectRoutes = require("./routes/subjectRoutes");
 const studySessionRoutes = require("./routes/studySessionRoutes");
+const goalRoutes = require("./routes/goalRoutes");
 
 app.use("/api/auth", authRoutes);
 app.use("/api/user", userRoutes);
 app.use("/api/subjects", subjectRoutes);
 app.use("/api/sessions", studySessionRoutes);
+app.use("/api/goals", goalRoutes);
 
 // Test route
 app.get("/", (req, res) => {
