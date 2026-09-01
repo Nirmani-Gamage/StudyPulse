@@ -13,6 +13,7 @@ import Subjects from './pages/dashboard/Subjects';
 import Goals from './pages/dashboard/Goals';
 import CalendarView from './pages/dashboard/Calendar';
 import Analytics from './pages/dashboard/Analytics';
+import Settings from './pages/dashboard/Settings';
 
 function App() {
   return (
@@ -36,6 +37,7 @@ function App() {
                 <Route path="goals" element={<Goals />} />
                 <Route path="calendar" element={<CalendarView />} />
                 <Route path="analytics" element={<Analytics />} />
+                <Route path="settings" element={<Settings />} />
               </Route>
             </Route>
           </Routes>

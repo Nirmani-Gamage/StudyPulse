@@ -19,6 +19,8 @@ interface StudyState {
   
   addEvent: (event: Omit<CalendarEvent, 'id' | 'createdAt'>) => void;
   deleteEvent: (id: string) => void;
+  
+  resetData: () => void;
 }
 
 const initialState: StudyState = {
@@ -35,6 +37,7 @@ const initialState: StudyState = {
   deleteSession: () => {},
   addEvent: () => {},
   deleteEvent: () => {},
+  resetData: () => {},
 };
 
 const StudyContext = createContext<StudyState>(initialState);
@@ -144,13 +147,25 @@ export function StudyProvider({ children }: { children: React.ReactNode }) {
     setEvents(prev => prev.filter(e => e.id !== id));
   };
 
+  const resetData = () => {
+    setSubjects([]);
+    setGoals([]);
+    setSessions([]);
+    setEvents([]);
+    localStorage.removeItem('studypulse_subjects');
+    localStorage.removeItem('studypulse_goals');
+    localStorage.removeItem('studypulse_sessions');
+    localStorage.removeItem('studypulse_events');
+  };
+
   return (
     <StudyContext.Provider value={{
       subjects, goals, sessions, events,
       addSubject, deleteSubject,
       addGoal, updateGoalProgress, deleteGoal,
       addSession, deleteSession,
-      addEvent, deleteEvent
+      addEvent, deleteEvent,
+      resetData
     }}>
       {children}
     </StudyContext.Provider>
