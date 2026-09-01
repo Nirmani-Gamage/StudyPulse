@@ -1,13 +1,11 @@
 const express = require("express");
 const protect = require("../middleware/authMiddleware");
 
+const { getProfile, updateProfile } = require("../controllers/profileController");
+
 const router = express.Router();
 
-router.get("/profile", protect, (req, res) => {
-  res.json({
-    message: "You are authenticated!",
-    userId: req.user.userId,
-  });
-});
+router.get("/profile", protect, getProfile);
+router.put("/profile", protect, updateProfile);
 
 module.exports = router;
