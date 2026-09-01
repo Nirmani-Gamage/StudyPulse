@@ -21,10 +21,12 @@ app.use(express.json());
 const authRoutes = require("./routes/authRoutes");
 const userRoutes = require("./routes/userRoutes");
 const subjectRoutes = require("./routes/subjectRoutes");
+const studySessionRoutes = require("./routes/studySessionRoutes");
 
 app.use("/api/auth", authRoutes);
 app.use("/api/user", userRoutes);
 app.use("/api/subjects", subjectRoutes);
+app.use("/api/sessions", studySessionRoutes);
 
 // Test route
 app.get("/", (req, res) => {
