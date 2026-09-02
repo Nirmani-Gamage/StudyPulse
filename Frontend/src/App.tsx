@@ -1,6 +1,7 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { ThemeProvider } from './context/ThemeContext';
-import { StudyProvider } from './context/StudyContext';
+import { AuthProvider, useAuth } from './context/AuthContext';
+import { StudyProvider, useStudyData } from './context/StudyContext';
 import RootLayout from './layouts/RootLayout';
 import DashboardLayout from './layouts/DashboardLayout';
 import Login from './pages/auth/Login';
@@ -15,12 +16,32 @@ import CalendarView from './pages/dashboard/Calendar';
 import Analytics from './pages/dashboard/Analytics';
 import Settings from './pages/dashboard/Settings';
 
+function ProtectedRoute({ children }: { children: React.ReactNode }) {
+  const { isAuthenticated, isInitializing } = useAuth();
+  const { isLoading: isStudyDataLoading } = useStudyData();
+
+  if (isInitializing) {
+    return <div className="flex h-screen items-center justify-center text-[var(--text-secondary)]">Loading application...</div>;
+  }
+
+  if (!isAuthenticated) {
+    return <Navigate to="/login" replace />;
+  }
+
+  if (isStudyDataLoading) {
+    return <div className="flex h-screen items-center justify-center text-[var(--text-secondary)]">Loading your study data...</div>;
+  }
+
+  return <>{children}</>;
+}
+
 function App() {
   return (
     <ThemeProvider defaultTheme="system" storageKey="studypulse-theme">
-      <StudyProvider>
-        <BrowserRouter>
-          <Routes>
+      <BrowserRouter>
+        <AuthProvider>
+          <StudyProvider>
+            <Routes>
             <Route path="/" element={<RootLayout />}>
               <Route index element={<Navigate to="/dashboard" replace />} />
               
@@ -28,8 +49,12 @@ function App() {
               <Route path="login" element={<Login />} />
               <Route path="register" element={<Register />} />
               
-              {/* Protected Routes (mocked for now) */}
-              <Route path="dashboard" element={<DashboardLayout />}>
+              {/* Protected Routes */}
+              <Route path="dashboard" element={
+                <ProtectedRoute>
+                  <DashboardLayout />
+                </ProtectedRoute>
+              }>
                 <Route index element={<Dashboard />} />
                 <Route path="sessions" element={<StudySessions />} />
                 <Route path="pomodoro" element={<Pomodoro />} />
@@ -40,9 +65,10 @@ function App() {
                 <Route path="settings" element={<Settings />} />
               </Route>
             </Route>
-          </Routes>
-        </BrowserRouter>
-      </StudyProvider>
+            </Routes>
+          </StudyProvider>
+        </AuthProvider>
+      </BrowserRouter>
     </ThemeProvider>
   );
 }
