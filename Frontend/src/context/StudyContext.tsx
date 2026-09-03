@@ -11,6 +11,7 @@ interface StudyState {
   
   error: string | null;
   refreshData: () => Promise<void>;
+  addSubject: (subject: Omit<Subject, 'id' | 'createdAt'>) => Promise<void>;
   updateSubject: (id: string, updates: Partial<Omit<Subject, 'id' | 'createdAt' | 'userId'>>) => Promise<void>;
   deleteSubject: (id: string) => Promise<void>;
   

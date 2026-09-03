@@ -12,7 +12,7 @@ import {
   Legend 
 } from 'chart.js';
 import { Bar, Pie } from 'react-chartjs-2';
-import { Flame, Target, Calendar, Clock, Activity, Lightbulb, CheckCircle2, AlertCircle, Info } from 'lucide-react';
+import { Flame, Target, Calendar, Clock, Activity, Lightbulb, CheckCircle2, AlertCircle, Info, Timer } from 'lucide-react';
 import { 
   getBestStudyTime, getMostStudiedSubject, getStudyConsistency, 
   getWeeklyEstimate, getGoalRisk, getSubjectBalance, 
@@ -461,8 +461,8 @@ export default function Analytics() {
             )}
           </CardContent>
         </Card>
-
-        </>
+      </div>
+      </>
       )}
     </div>
   );

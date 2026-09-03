@@ -76,7 +76,7 @@ export default function CalendarView() {
           title,
           date: selectedDate,
           type,
-          subjectId: subjectId || null
+          subjectId: subjectId || undefined
         };
 
         if (editingEvent) {

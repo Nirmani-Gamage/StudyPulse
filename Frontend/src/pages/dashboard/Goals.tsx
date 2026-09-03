@@ -50,7 +50,7 @@ export default function Goals() {
       try {
         const payload = {
           title,
-          subjectId: subjectId || null, // API handles null for unsetting or General
+          subjectId: subjectId || undefined, // API handles undefined for unsetting or General
           targetHours: Number(targetHours),
           deadline,
         };

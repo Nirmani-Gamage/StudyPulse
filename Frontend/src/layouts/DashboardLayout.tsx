@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Outlet } from 'react-router-dom';
 import { Sidebar } from '../components/layout/Sidebar';
 import { TopNav } from '../components/layout/TopNav';
-import { useStudyData } from '../../context/StudyContext';
+import { useStudyData } from '../context/StudyContext';
 import { AlertCircle } from 'lucide-react';
 
 export default function DashboardLayout() {

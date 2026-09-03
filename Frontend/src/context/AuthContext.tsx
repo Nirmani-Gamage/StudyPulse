@@ -1,4 +1,5 @@
-import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { createContext, useContext, useState, useEffect } from 'react';
+import type { ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 interface User {
@@ -69,7 +70,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // Dispatch event so other contexts can reset their state
     window.dispatchEvent(new Event('auth:logout'));
 
-    navigate('/login');
+    navigate('/');
   };
 
   return (

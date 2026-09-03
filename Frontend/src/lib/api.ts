@@ -9,7 +9,7 @@ async function fetchApi(endpoint: string, options: RequestInit = {}) {
   };
 
   if (token) {
-    headers['Authorization'] = `Bearer ${token}`;
+    (headers as Record<string, string>)['Authorization'] = `Bearer ${token}`;
   }
 
   const isAuthRequest = endpoint.startsWith('/auth/');

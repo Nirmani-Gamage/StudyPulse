@@ -73,6 +73,12 @@ export default function Login() {
         <p className="mt-4 text-center text-sm text-[var(--text-secondary)]">
           Don't have an account? <Link to="/register" className="text-[var(--color-primary)] hover:underline">Register here</Link>
         </p>
+        
+        <div className="mt-6 text-center">
+          <Link to="/" className="text-sm font-medium text-[var(--text-secondary)] hover:text-[var(--color-primary)] transition-colors flex items-center justify-center gap-2">
+            &larr; Back to Home
+          </Link>
+        </div>
       </div>
     </div>
   );

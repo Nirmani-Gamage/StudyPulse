@@ -1,10 +1,11 @@
-import { Search, Bell, Menu, Moon, Sun, X, Check } from 'lucide-react';
+import { Search, Bell, Menu, Moon, Sun, X, Check, LogOut } from 'lucide-react';
 import { useState, useRef, useEffect } from 'react';
 import { Button } from '../ui/Button';
 import { Input } from '../ui/Input';
 import { useTheme } from '../../context/ThemeContext';
 import { useProfile } from '../../hooks/useProfile';
 import { useReminders } from '../../hooks/useReminders';
+import { useAuth } from '../../context/AuthContext';
 
 interface TopNavProps {
   onMenuClick: () => void;
@@ -14,9 +15,13 @@ export function TopNav({ onMenuClick }: TopNavProps) {
   const { theme, setTheme } = useTheme();
   const { getInitials } = useProfile();
   const { activeReminders, dismissReminder, requestPermission } = useReminders();
+  const { user, logout } = useAuth();
   
   const [showNotifications, setShowNotifications] = useState(false);
   const notificationRef = useRef<HTMLDivElement>(null);
+
+  const [showAvatarMenu, setShowAvatarMenu] = useState(false);
+  const avatarRef = useRef<HTMLDivElement>(null);
 
   const isDark = theme === 'dark' || (theme === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
   
@@ -29,19 +34,33 @@ export function TopNav({ onMenuClick }: TopNavProps) {
       if (notificationRef.current && !notificationRef.current.contains(event.target as Node)) {
         setShowNotifications(false);
       }
+      if (avatarRef.current && !avatarRef.current.contains(event.target as Node)) {
+        setShowAvatarMenu(false);
+      }
     }
     document.addEventListener("mousedown", handleClickOutside);
     return () => {
       document.removeEventListener("mousedown", handleClickOutside);
     };
-  }, [notificationRef]);
+  }, [notificationRef, avatarRef]);
 
   const handleNotificationClick = () => {
     setShowNotifications(!showNotifications);
+    setShowAvatarMenu(false);
     if (!showNotifications) {
       requestPermission();
     }
   };
+
+  const handleAvatarClick = () => {
+    setShowAvatarMenu(!showAvatarMenu);
+    setShowNotifications(false);
+  };
+
+  // Determine actual initials using AuthContext user name first, falling back to profile
+  const actualInitials = user?.name 
+    ? user.name.substring(0, 2).toUpperCase() 
+    : getInitials();
 
   return (
     <header className="sticky top-0 z-30 flex h-16 shrink-0 items-center justify-between border-b border-[var(--border-color)] bg-[var(--card-bg)] px-4 sm:px-6">
@@ -125,10 +144,34 @@ export function TopNav({ onMenuClick }: TopNavProps) {
           )}
         </div>
         
-        <div className="h-9 w-9 rounded-full bg-[var(--color-secondary)] overflow-hidden cursor-pointer hover:ring-2 ring-[var(--color-primary)] ring-offset-2 ring-offset-[var(--card-bg)] transition-all ml-1 sm:ml-2">
-          <div className="h-full w-full flex items-center justify-center text-white text-sm font-medium">
-            {getInitials()}
+        <div className="relative" ref={avatarRef}>
+          <div 
+            onClick={handleAvatarClick}
+            className="h-9 w-9 rounded-full bg-[var(--color-secondary)] overflow-hidden cursor-pointer hover:ring-2 ring-[var(--color-primary)] ring-offset-2 ring-offset-[var(--card-bg)] transition-all ml-1 sm:ml-2"
+          >
+            <div className="h-full w-full flex items-center justify-center text-white text-sm font-medium">
+              {actualInitials}
+            </div>
           </div>
+
+          {showAvatarMenu && (
+            <div className="absolute right-0 mt-2 w-48 rounded-[var(--radius-card)] bg-[var(--card-bg)] shadow-xl border border-[var(--border-color)] overflow-hidden z-50 py-1">
+              <div className="px-4 py-2 border-b border-[var(--border-color)] mb-1">
+                <p className="text-sm font-medium text-[var(--text-primary)] truncate">{user?.name || 'Student'}</p>
+                <p className="text-xs text-[var(--text-secondary)] truncate">{user?.email || 'No email'}</p>
+              </div>
+              <button 
+                onClick={() => {
+                  setShowAvatarMenu(false);
+                  logout();
+                }}
+                className="w-full text-left px-4 py-2 text-sm text-[var(--color-error)] hover:bg-[var(--color-error)]/10 flex items-center transition-colors"
+              >
+                <LogOut className="mr-2 h-4 w-4" />
+                Logout
+              </button>
+            </div>
+          )}
         </div>
       </div>
     </header>

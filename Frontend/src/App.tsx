@@ -7,6 +7,7 @@ import DashboardLayout from './layouts/DashboardLayout';
 import Login from './pages/auth/Login';
 import Register from './pages/auth/Register';
 import Dashboard from './pages/dashboard/Dashboard';
+import LandingPage from './pages/LandingPage';
 // Phase 3 placeholders
 import StudySessions from './pages/dashboard/StudySessions';
 import Pomodoro from './pages/dashboard/Pomodoro';
@@ -43,7 +44,7 @@ function App() {
           <StudyProvider>
             <Routes>
             <Route path="/" element={<RootLayout />}>
-              <Route index element={<Navigate to="/dashboard" replace />} />
+              <Route index element={<LandingPage />} />
               
               {/* Auth Routes */}
               <Route path="login" element={<Login />} />

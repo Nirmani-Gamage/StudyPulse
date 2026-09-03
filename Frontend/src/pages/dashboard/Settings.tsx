@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+
 import { 
   User, Mail, Building, GraduationCap, FileText, 
   Moon, Sun, Laptop, AlertTriangle, LogOut,
@@ -11,9 +11,10 @@ import { Input } from '../../components/ui/Input';
 import { useProfile } from '../../hooks/useProfile';
 import { useTheme } from '../../context/ThemeContext';
 import { useStudyData } from '../../context/StudyContext';
+import { useAuth } from '../../context/AuthContext';
 
 export default function Settings() {
-  const navigate = useNavigate();
+  const { logout } = useAuth();
   const { theme, setTheme } = useTheme();
   const { resetData } = useStudyData();
   const { 
@@ -61,7 +62,7 @@ export default function Settings() {
   };
 
   const handleLogout = () => {
-    navigate('/login');
+    logout();
   };
 
   return (
