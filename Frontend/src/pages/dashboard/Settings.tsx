@@ -25,6 +25,7 @@ export default function Settings() {
   const [formData, setFormData] = useState(profile);
   const [isSaving, setIsSaving] = useState(false);
   const [saveMessage, setSaveMessage] = useState('');
+  const [error, setError] = useState('');
 
   // Local state for modal
   const [showResetModal, setShowResetModal] = useState(false);
@@ -37,16 +38,20 @@ export default function Settings() {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
-  const handleSaveProfile = (e: React.FormEvent) => {
+  const handleSaveProfile = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSaving(true);
-    // Simulate network delay
-    setTimeout(() => {
-      updateProfile(formData);
-      setIsSaving(false);
+    setError('');
+    setSaveMessage('');
+    try {
+      await updateProfile(formData);
       setSaveMessage('Profile saved successfully.');
       setTimeout(() => setSaveMessage(''), 3000);
-    }, 500);
+    } catch (err: any) {
+      setError(err.message || 'Failed to save profile.');
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const handleResetData = () => {
@@ -78,6 +83,11 @@ export default function Settings() {
             </CardHeader>
             <CardContent>
               <form onSubmit={handleSaveProfile} className="space-y-6">
+                {error && (
+                  <div className="p-3 bg-red-100 text-red-700 rounded text-sm font-medium">
+                    {error}
+                  </div>
+                )}
                 
                 <div className="flex items-center gap-6 mb-6">
                   <div className="h-20 w-20 rounded-full bg-[var(--color-primary)] text-white flex items-center justify-center text-2xl font-bold">

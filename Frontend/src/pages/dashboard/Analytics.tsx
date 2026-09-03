@@ -112,19 +112,24 @@ export default function Analytics() {
     const subjectTimes: number[] = [];
     const subjectColors: string[] = [];
     
+    let assignedMins = 0;
+
     subjects.forEach(sub => {
       const mins = sessions.filter(s => s.subjectId === sub.id).reduce((a, s) => a + s.durationMinutes, 0);
       if (mins > 0) {
         subjectNames.push(sub.name);
         subjectTimes.push(Math.round((mins / 60) * 10) / 10);
         subjectColors.push(sub.color);
+        assignedMins += mins;
       }
     });
-    
-    if (subjectNames.length === 0) {
-      subjectNames.push('No Data');
-      subjectTimes.push(1);
-      subjectColors.push('#374151');
+
+    const totalMins = sessions.reduce((a, s) => a + s.durationMinutes, 0);
+    const unassignedMins = totalMins - assignedMins;
+    if (unassignedMins > 0) {
+      subjectNames.push('Unassigned');
+      subjectTimes.push(Math.round((unassignedMins / 60) * 10) / 10);
+      subjectColors.push('#9CA3AF');
     }
 
     // Recent Timeline
@@ -160,70 +165,72 @@ export default function Analytics() {
         <p className="text-[var(--text-secondary)] mt-1">Deep dive into your study patterns and habits.</p>
       </div>
 
-      {/* Learning Insights Section */}
-      <div className="mb-10 space-y-4">
-        <div>
-          <h2 className="text-xl font-bold text-[var(--text-primary)] flex items-center gap-2">
-            <Lightbulb className="h-5 w-5 text-[var(--color-warning)]" /> Learning Insights
-          </h2>
-          <p className="text-sm text-[var(--text-secondary)] mt-1">Understand your study habits and get personalized suggestions.</p>
-        </div>
+      {sessions.length === 0 ? (
+        <Card className="mt-8 border-dashed border-2">
+          <CardContent className="p-16 text-center flex flex-col items-center justify-center">
+            <Lightbulb className="h-16 w-16 text-[var(--text-secondary)]/30 mb-4" />
+            <h2 className="text-2xl font-bold text-[var(--text-primary)] mb-3">No study data yet</h2>
+            <p className="text-[var(--text-secondary)] text-base max-w-md">
+              Complete a study session or run a Pomodoro timer to see your analytics, learning patterns, and progress.
+            </p>
+          </CardContent>
+        </Card>
+      ) : (
+        <>
+          {/* Learning Insights Section */}
+          <div className="mb-10 space-y-4">
+            <div>
+              <h2 className="text-xl font-bold text-[var(--text-primary)] flex items-center gap-2">
+                <Lightbulb className="h-5 w-5 text-[var(--color-warning)]" /> Learning Insights
+              </h2>
+              <p className="text-sm text-[var(--text-secondary)] mt-1">Understand your study habits and get personalized suggestions.</p>
+            </div>
 
-        {sessions.length === 0 ? (
-          <Card>
-            <CardContent className="p-8 text-center flex flex-col items-center">
-              <Lightbulb className="h-10 w-10 text-[var(--text-secondary)]/50 mb-3" />
-              <p className="text-[var(--text-primary)] font-medium">Your insights will appear here as you study.</p>
-              <p className="text-[var(--text-secondary)] text-sm mt-1">Complete a few study sessions to start discovering your learning patterns.</p>
-            </CardContent>
-          </Card>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-            {[
-              insights.bestTime,
-              insights.mostStudied,
-              insights.consistency,
-              insights.estimate,
-              insights.goalRisk,
-              insights.balance,
-              insights.trend
-            ].map((insight, idx) => (
-              <Card key={idx} className="h-full">
-                <CardContent className="p-5 flex flex-col justify-between h-full gap-3">
-                  <div className="flex items-start gap-3">
-                    <div className="mt-0.5"><InsightIcon status={insight.status} /></div>
-                    <div>
-                      <p className="text-xs font-semibold text-[var(--text-secondary)] uppercase tracking-wider mb-1">{insight.title}</p>
-                      <h4 className="text-base font-bold text-[var(--text-primary)] leading-tight">{insight.value}</h4>
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+              {[
+                insights.bestTime,
+                insights.mostStudied,
+                insights.consistency,
+                insights.estimate,
+                insights.goalRisk,
+                insights.balance,
+                insights.trend
+              ].map((insight, idx) => (
+                <Card key={idx} className="h-full">
+                  <CardContent className="p-5 flex flex-col justify-between h-full gap-3">
+                    <div className="flex items-start gap-3">
+                      <div className="mt-0.5"><InsightIcon status={insight.status} /></div>
+                      <div>
+                        <p className="text-xs font-semibold text-[var(--text-secondary)] uppercase tracking-wider mb-1">{insight.title}</p>
+                        <h4 className="text-base font-bold text-[var(--text-primary)] leading-tight">{insight.value}</h4>
+                      </div>
                     </div>
-                  </div>
-                  <p className="text-sm text-[var(--text-secondary)] ml-8">{insight.description}</p>
-                </CardContent>
-              </Card>
-            ))}
+                    <p className="text-sm text-[var(--text-secondary)] ml-8">{insight.description}</p>
+                  </CardContent>
+                </Card>
+              ))}
 
-            {/* Suggested Actions */}
-            {insights.suggestions.length > 0 && (
-              <Card className="md:col-span-2 xl:col-span-2 border-[var(--color-primary)]/30 bg-[var(--color-primary)]/5">
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-base flex items-center gap-2 text-[var(--text-primary)]">
-                    <CheckCircle2 className="h-4 w-4 text-[var(--color-primary)]" /> Suggested Actions
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <ul className="space-y-2">
-                    {insights.suggestions.map((sug, idx) => (
-                      <li key={idx} className="flex items-start gap-2 text-sm text-[var(--text-primary)] font-medium">
-                        <span className="text-[var(--color-primary)] font-bold">&bull;</span> {sug}
-                      </li>
-                    ))}
-                  </ul>
-                </CardContent>
-              </Card>
-            )}
+              {/* Suggested Actions */}
+              {insights.suggestions.length > 0 && (
+                <Card className="md:col-span-2 xl:col-span-2 border-[var(--color-primary)]/30 bg-[var(--color-primary)]/5">
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-base flex items-center gap-2 text-[var(--text-primary)]">
+                      <CheckCircle2 className="h-4 w-4 text-[var(--color-primary)]" /> Suggested Actions
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <ul className="space-y-2">
+                      {insights.suggestions.map((sug, idx) => (
+                        <li key={idx} className="flex items-start gap-2 text-sm text-[var(--text-primary)] font-medium">
+                          <span className="text-[var(--color-primary)] font-bold">&bull;</span> {sug}
+                        </li>
+                      ))}
+                    </ul>
+                  </CardContent>
+                </Card>
+              )}
+            </div>
           </div>
-        )}
-      </div>
 
       {/* KPI Cards */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4 mb-6">
@@ -379,7 +386,8 @@ export default function Analytics() {
           </CardContent>
         </Card>
 
-      </div>
+        </>
+      )}
     </div>
   );
 }

@@ -1,16 +1,20 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useStudyData } from '../../context/StudyContext';
 import { Card, CardContent } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 import { Play, Pause, Square, Timer } from 'lucide-react';
 
 export default function Pomodoro() {
-  const { subjects, addSession } = useStudyData();
+  const { subjects, goals, addSession, updateGoalProgress } = useStudyData();
   const [subjectId, setSubjectId] = useState('');
+  const [goalId, setGoalId] = useState('');
   
   const [timeLeft, setTimeLeft] = useState(25 * 60);
   const [isActive, setIsActive] = useState(false);
   const [sessionStartTime, setSessionStartTime] = useState<Date | null>(null);
+  
+  const [status, setStatus] = useState<{type: 'success' | 'error' | 'warning', message: string} | null>(null);
+  const isCompletingRef = useRef(false);
 
   useEffect(() => {
     let interval: ReturnType<typeof setInterval>;
@@ -20,23 +24,52 @@ export default function Pomodoro() {
         setTimeLeft((time) => time - 1);
       }, 1000);
     } else if (timeLeft === 0 && isActive) {
+      if (isCompletingRef.current) return;
+      isCompletingRef.current = true;
+      
       setIsActive(false);
       
-      if (subjectId && sessionStartTime) {
-        addSession({
-          subjectId,
-          startTime: sessionStartTime.toISOString(),
-          endTime: new Date().toISOString(),
-          durationMinutes: 25,
-          type: 'pomodoro',
-        });
-      }
-      
+      const completeSession = async () => {
+        if (subjectId && sessionStartTime) {
+          setStatus(null);
+          try {
+            await addSession({
+              subjectId,
+              startTime: sessionStartTime.toISOString(),
+              endTime: new Date().toISOString(),
+              durationMinutes: 25,
+              type: 'pomodoro',
+            });
+            
+            if (goalId) {
+              try {
+                const hours = 25 / 60;
+                await updateGoalProgress(goalId, hours);
+                setStatus({ type: 'success', message: 'Session completed and goal progress updated!' });
+              } catch (goalError) {
+                console.error('Goal update failed', goalError);
+                setStatus({ type: 'warning', message: 'Session saved, but failed to update Goal progress.' });
+              }
+            } else {
+              setStatus({ type: 'success', message: 'Session completed and saved successfully!' });
+            }
+          } catch (e) {
+            console.error('Failed to save pomodoro session', e);
+            setStatus({ type: 'error', message: 'Failed to save Study Session. Please try again.' });
+          } finally {
+            isCompletingRef.current = false;
+          }
+        } else {
+          isCompletingRef.current = false;
+        }
+      };
+
+      completeSession();
       setTimeLeft(25 * 60); 
     }
 
     return () => clearInterval(interval);
-  }, [isActive, timeLeft, subjectId, sessionStartTime, addSession]);
+  }, [isActive, timeLeft, subjectId, sessionStartTime, goalId, addSession, updateGoalProgress]);
 
   const toggleTimer = () => {
     if (!isActive && !sessionStartTime) {
@@ -49,6 +82,7 @@ export default function Pomodoro() {
     setIsActive(false);
     setTimeLeft(25 * 60);
     setSessionStartTime(null);
+    setStatus(null);
   };
 
   const formatTime = (seconds: number) => {
@@ -68,6 +102,17 @@ export default function Pomodoro() {
 
       <Card className="w-full max-w-md bg-[var(--card-bg)] border-[var(--border-color)]">
         <CardContent className="p-8 flex flex-col items-center">
+          
+          {status && (
+            <div className={`w-full mb-6 p-3 rounded text-sm font-medium text-center ${
+              status.type === 'success' ? 'bg-green-100 text-green-700' :
+              status.type === 'warning' ? 'bg-yellow-100 text-yellow-700' :
+              'bg-red-100 text-red-700'
+            }`}>
+              {status.message}
+            </div>
+          )}
+
           <div className="w-full mb-8">
             <label className="block text-sm font-medium text-[var(--text-primary)] mb-2 text-center">Select Subject to Track</label>
             <select 
@@ -79,6 +124,23 @@ export default function Pomodoro() {
               <option value="">-- Choose Subject --</option>
               {subjects.map(s => (
                 <option key={s.id} value={s.id}>{s.name}</option>
+              ))}
+            </select>
+          </div>
+
+          <div className="w-full mb-8">
+            <label className="block text-sm font-medium text-[var(--text-primary)] mb-2 text-center">Select Goal (Optional)</label>
+            <select 
+              className="flex h-11 w-full rounded-[var(--radius-input)] border border-[var(--border-color)] bg-[var(--bg-color)] px-3 py-2 text-sm text-[var(--text-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-primary)] disabled:opacity-50"
+              value={goalId}
+              onChange={(e) => setGoalId(e.target.value)}
+              disabled={isActive}
+            >
+              <option value="">-- No Goal --</option>
+              {goals
+                .filter(g => !g.isCompleted && (!subjectId || !g.subjectId || g.subjectId === subjectId))
+                .map(g => (
+                <option key={g.id} value={g.id}>{g.title}</option>
               ))}
             </select>
           </div>
