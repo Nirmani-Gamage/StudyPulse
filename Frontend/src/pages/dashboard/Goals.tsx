@@ -4,10 +4,11 @@ import { Card, CardContent } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
 import { Modal } from '../../components/ui/Modal';
-import { Target, Plus, Trash2, CheckCircle2 } from 'lucide-react';
+import { Target, Plus, Trash2, CheckCircle2, Edit2 } from 'lucide-react';
+import type { Goal } from '../../types';
 
 export default function Goals() {
-  const { goals, subjects, addGoal, deleteGoal, updateGoalProgress } = useStudyData();
+  const { goals, subjects, addGoal, updateGoal, deleteGoal, updateGoalProgress } = useStudyData();
   const [isModalOpen, setIsModalOpen] = useState(false);
   
   // Form state
@@ -16,20 +17,58 @@ export default function Goals() {
   const [targetHours, setTargetHours] = useState('');
   const [deadline, setDeadline] = useState('');
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const [editingGoal, setEditingGoal] = useState<Goal | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
+  const [error, setError] = useState('');
+  const [successMsg, setSuccessMsg] = useState('');
+
+  const openAddModal = () => {
+    setEditingGoal(null);
+    setTitle('');
+    setSubjectId('');
+    setTargetHours('');
+    setDeadline('');
+    setError('');
+    setIsModalOpen(true);
+  };
+
+  const openEditModal = (goal: Goal) => {
+    setEditingGoal(goal);
+    setTitle(goal.title);
+    setSubjectId(goal.subjectId || '');
+    setTargetHours(goal.targetHours.toString());
+    setDeadline(goal.deadline.split('T')[0]); // Ensure date is formatted properly for input type date
+    setError('');
+    setIsModalOpen(true);
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (title && targetHours && deadline) {
-      addGoal({
-        title,
-        subjectId: subjectId || undefined,
-        targetHours: Number(targetHours),
-        deadline,
-      });
-      setTitle('');
-      setSubjectId('');
-      setTargetHours('');
-      setDeadline('');
-      setIsModalOpen(false);
+      setIsSaving(true);
+      setError('');
+      try {
+        const payload = {
+          title,
+          subjectId: subjectId || null, // API handles null for unsetting or General
+          targetHours: Number(targetHours),
+          deadline,
+        };
+
+        if (editingGoal) {
+          await updateGoal(editingGoal.id, payload);
+          setSuccessMsg('Goal updated successfully');
+        } else {
+          await addGoal(payload);
+          setSuccessMsg('Goal added successfully');
+        }
+        setIsModalOpen(false);
+        setTimeout(() => setSuccessMsg(''), 3000);
+      } catch (err: any) {
+        setError(err.message || 'Failed to save goal');
+      } finally {
+        setIsSaving(false);
+      }
     }
   };
 
@@ -44,11 +83,17 @@ export default function Goals() {
           <h1 className="text-3xl font-bold text-[var(--text-primary)] tracking-tight">Goals</h1>
           <p className="text-[var(--text-secondary)] mt-1">Set and track your study targets.</p>
         </div>
-        <Button onClick={() => setIsModalOpen(true)} className="shrink-0 gap-2">
+        <Button onClick={openAddModal} className="shrink-0 gap-2">
           <Plus className="h-4 w-4" />
           Add Goal
         </Button>
       </div>
+
+      {successMsg && (
+        <div className="bg-green-100 text-green-700 p-3 rounded-[var(--radius-base)] text-sm font-medium">
+          {successMsg}
+        </div>
+      )}
 
       {goals.length === 0 ? (
         <Card className="flex flex-col items-center justify-center p-12 text-center border-dashed bg-transparent shadow-none">
@@ -57,7 +102,7 @@ export default function Goals() {
           </div>
           <h3 className="text-lg font-semibold text-[var(--text-primary)] mb-2">No goals set</h3>
           <p className="text-[var(--text-secondary)] max-w-sm mb-6">Create a goal to stay focused and track your progress over time.</p>
-          <Button onClick={() => setIsModalOpen(true)}>Create Goal</Button>
+          <Button onClick={openAddModal}>Create Goal</Button>
         </Card>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -79,14 +124,24 @@ export default function Goals() {
                         {subject ? subject.name : 'General'} • Due {new Date(goal.deadline).toLocaleDateString()}
                       </p>
                     </div>
-                    <Button 
-                      variant="ghost" 
-                      size="icon" 
-                      className="opacity-0 group-hover:opacity-100 transition-opacity text-[var(--text-secondary)] hover:text-[var(--color-error)]"
-                      onClick={() => deleteGoal(goal.id)}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
+                    <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <Button 
+                        variant="ghost" 
+                        size="icon" 
+                        className="text-[var(--text-secondary)] hover:text-[var(--color-primary)]"
+                        onClick={() => openEditModal(goal)}
+                      >
+                        <Edit2 className="h-4 w-4" />
+                      </Button>
+                      <Button 
+                        variant="ghost" 
+                        size="icon" 
+                        className="text-[var(--text-secondary)] hover:text-[var(--color-error)]"
+                        onClick={() => deleteGoal(goal.id)}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
                   </div>
                   
                   <div className="space-y-2">
@@ -116,8 +171,13 @@ export default function Goals() {
         </div>
       )}
 
-      <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} title="Add New Goal">
+      <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} title={editingGoal ? "Edit Goal" : "Add New Goal"}>
         <form onSubmit={handleSubmit} className="space-y-4">
+          {error && (
+            <div className="p-3 bg-red-100 text-red-700 rounded text-sm mb-4">
+              {error}
+            </div>
+          )}
           <div>
             <label className="block text-sm font-medium text-[var(--text-primary)] mb-1">Goal Title</label>
             <Input 
@@ -164,7 +224,9 @@ export default function Goals() {
           </div>
           <div className="flex justify-end gap-3 mt-8">
             <Button type="button" variant="ghost" onClick={() => setIsModalOpen(false)}>Cancel</Button>
-            <Button type="submit">Save Goal</Button>
+            <Button type="submit" disabled={isSaving}>
+              {isSaving ? 'Saving...' : (editingGoal ? 'Update Goal' : 'Save Goal')}
+            </Button>
           </div>
         </form>
       </Modal>

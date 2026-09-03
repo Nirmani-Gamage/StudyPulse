@@ -11,9 +11,11 @@ interface StudyState {
   
   
   addSubject: (subject: Omit<Subject, 'id' | 'createdAt'>) => Promise<void>;
+  updateSubject: (id: string, updates: Partial<Omit<Subject, 'id' | 'createdAt' | 'userId'>>) => Promise<void>;
   deleteSubject: (id: string) => Promise<void>;
   
   addGoal: (goal: Omit<Goal, 'id' | 'createdAt' | 'completedHours' | 'isCompleted'>) => Promise<void>;
+  updateGoal: (id: string, updates: Partial<Omit<Goal, 'id' | 'createdAt' | 'userId'>>) => Promise<void>;
   updateGoalProgress: (id: string, hoursToAdd: number) => Promise<void>;
   deleteGoal: (id: string) => Promise<void>;
   
@@ -33,8 +35,10 @@ const initialState: StudyState = {
   sessions: [],
   events: [],
   addSubject: async () => {},
+  updateSubject: async () => {},
   deleteSubject: async () => {},
   addGoal: async () => {},
+  updateGoal: async () => {},
   updateGoalProgress: async () => {},
   deleteGoal: async () => {},
   addSession: async () => {},
@@ -94,6 +98,13 @@ export function StudyProvider({ children }: { children: React.ReactNode }) {
     if (data.subject) setSubjects(prev => [...prev, data.subject]);
   };
 
+  const updateSubject = async (id: string, updates: Partial<Omit<Subject, 'id' | 'createdAt' | 'userId'>>) => {
+    const data = await api.put(`/subjects/${id}`, updates);
+    if (data.subject) {
+      setSubjects(prev => prev.map(s => s.id === id ? data.subject : s));
+    }
+  };
+
   const deleteSubject = async (id: string) => {
     await api.delete(`/subjects/${id}`);
     setSubjects(prev => prev.filter(s => s.id !== id));
@@ -102,6 +113,13 @@ export function StudyProvider({ children }: { children: React.ReactNode }) {
   const addGoal = async (goal: Omit<Goal, 'id' | 'createdAt' | 'completedHours' | 'isCompleted'>) => {
     const data = await api.post('/goals', goal);
     if (data.goal) setGoals(prev => [...prev, data.goal]);
+  };
+
+  const updateGoal = async (id: string, updates: Partial<Omit<Goal, 'id' | 'createdAt' | 'userId'>>) => {
+    const data = await api.put(`/goals/${id}`, updates);
+    if (data.goal) {
+      setGoals(prev => prev.map(g => g.id === id ? data.goal : g));
+    }
   };
 
   const updateGoalProgress = async (id: string, hoursToAdd: number) => {
@@ -151,8 +169,8 @@ export function StudyProvider({ children }: { children: React.ReactNode }) {
   return (
     <StudyContext.Provider value={{
       subjects, goals, sessions, events,
-      addSubject, deleteSubject,
-      addGoal, updateGoalProgress, deleteGoal,
+      addSubject, updateSubject, deleteSubject,
+      addGoal, updateGoal, updateGoalProgress, deleteGoal,
       addSession, deleteSession,
       addEvent, deleteEvent,
       isLoading, resetData
