@@ -18,9 +18,14 @@ export default function Goals() {
   const [deadline, setDeadline] = useState('');
 
   const [editingGoal, setEditingGoal] = useState<Goal | null>(null);
+  const [goalToDelete, setGoalToDelete] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
+
+  const now = new Date();
+  const tzoffset = now.getTimezoneOffset() * 60000;
+  const todayISO = (new Date(now.getTime() - tzoffset)).toISOString().split('T')[0];
 
   const openAddModal = () => {
     setEditingGoal(null);
@@ -48,6 +53,16 @@ export default function Goals() {
       setIsSaving(true);
       setError('');
       try {
+        const selectedDate = new Date(deadline);
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        
+        if (selectedDate < today) {
+          setError('Cannot select a deadline in the past');
+          setIsSaving(false);
+          return;
+        }
+
         const payload = {
           title,
           subjectId: subjectId || undefined, // API handles undefined for unsetting or General
@@ -137,7 +152,7 @@ export default function Goals() {
                         variant="ghost" 
                         size="icon" 
                         className="text-[var(--text-secondary)] hover:text-[var(--color-error)]"
-                        onClick={() => deleteGoal(goal.id)}
+                        onClick={() => setGoalToDelete(goal.id)}
                       >
                         <Trash2 className="h-4 w-4" />
                       </Button>
@@ -157,13 +172,7 @@ export default function Goals() {
                     </div>
                   </div>
                   
-                  {!goal.isCompleted && (
-                    <div className="mt-6 flex justify-end gap-2">
-                      <Button variant="outline" size="sm" onClick={() => updateGoalProgress(goal.id, 1)}>
-                        +1 Hour
-                      </Button>
-                    </div>
-                  )}
+
                 </CardContent>
               </Card>
             );
@@ -217,6 +226,7 @@ export default function Goals() {
               <Input 
                 required
                 type="date"
+                min={todayISO}
                 value={deadline}
                 onChange={(e) => setDeadline(e.target.value)}
               />
@@ -229,6 +239,26 @@ export default function Goals() {
             </Button>
           </div>
         </form>
+      </Modal>
+
+      <Modal isOpen={!!goalToDelete} onClose={() => setGoalToDelete(null)} title="Delete Goal">
+        <div className="space-y-4">
+          <p className="text-[var(--text-secondary)]">Are you sure you want to delete this goal? This action cannot be undone.</p>
+          <div className="flex justify-end gap-3 mt-8">
+            <Button variant="ghost" onClick={() => setGoalToDelete(null)}>Cancel</Button>
+            <Button 
+              className="bg-[var(--color-error)] text-white hover:bg-[var(--color-error)]/90"
+              onClick={() => {
+                if (goalToDelete) {
+                  deleteGoal(goalToDelete);
+                  setGoalToDelete(null);
+                }
+              }}
+            >
+              Delete
+            </Button>
+          </div>
+        </div>
       </Modal>
     </div>
   );

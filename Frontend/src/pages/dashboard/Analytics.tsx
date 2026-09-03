@@ -199,9 +199,9 @@ export default function Analytics() {
         <Card className="mt-8 border-dashed border-2">
           <CardContent className="p-16 text-center flex flex-col items-center justify-center">
             <Lightbulb className="h-16 w-16 text-[var(--text-secondary)]/30 mb-4" />
-            <h2 className="text-2xl font-bold text-[var(--text-primary)] mb-3">No study data yet</h2>
-            <p className="text-[var(--text-secondary)] text-base max-w-md">
-              Complete a study session or run a Pomodoro timer to see your analytics, learning patterns, and progress.
+            <h3 className="text-xl font-bold text-[var(--text-primary)] mb-2">No data available</h3>
+            <p className="text-[var(--text-secondary)]">
+              Complete a study session or run a timer to see your analytics, learning patterns, and progress.
             </p>
           </CardContent>
         </Card>
@@ -450,9 +450,10 @@ export default function Analytics() {
                           <div className="font-bold text-[var(--text-primary)] text-sm">{sub?.name || 'Unknown'}</div>
                           <time className="font-mono text-xs text-[var(--color-primary)]">{session.durationMinutes}m</time>
                         </div>
-                        <div className="text-[var(--text-secondary)] text-xs">
-                          {new Date(session.startTime).toLocaleString()} {session.type === 'pomodoro' ? ' (Pomodoro)' : ''}
-                        </div>
+                        <p className="text-xs text-[var(--text-secondary)] mt-1 flex items-center gap-2">
+                          <Clock className="h-3 w-3" />
+                          {new Date(session.startTime).toLocaleString()} {session.type === 'pomodoro' ? ' (Timer)' : ''}
+                        </p>
                       </div>
                     </div>
                   );

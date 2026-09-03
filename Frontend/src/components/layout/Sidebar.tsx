@@ -18,7 +18,7 @@ import { Button } from '../ui/Button';
 const navItems = [
   { name: 'Dashboard', icon: LayoutDashboard, path: '/dashboard' },
   { name: 'Study Sessions', icon: BookOpen, path: '/dashboard/sessions' },
-  { name: 'Pomodoro', icon: Timer, path: '/dashboard/pomodoro' },
+  { name: 'Timer', icon: Timer, path: '/dashboard/pomodoro' },
   { name: 'Subjects', icon: Library, path: '/dashboard/subjects' },
   { name: 'Goals', icon: Target, path: '/dashboard/goals' },
   { name: 'Analytics', icon: BarChart2, path: '/dashboard/analytics' },

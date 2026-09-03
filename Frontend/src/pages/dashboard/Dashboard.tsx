@@ -257,7 +257,7 @@ export default function Dashboard() {
         <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3">
           {[
             { icon: Play, label: 'Start Session', path: '/dashboard/sessions', color: 'text-blue-500', bg: 'bg-blue-500/10' },
-            { icon: Timer, label: 'Start Pomodoro', path: '/dashboard/pomodoro', color: 'text-orange-500', bg: 'bg-orange-500/10' },
+            { icon: Timer, label: 'Start Timer', path: '/dashboard/pomodoro', color: 'text-orange-500', bg: 'bg-orange-500/10' },
             { icon: PlusCircle, label: 'Add Subject', path: '/dashboard/subjects', color: 'text-purple-500', bg: 'bg-purple-500/10' },
             { icon: Target, label: 'Add Goal', path: '/dashboard/goals', color: 'text-emerald-500', bg: 'bg-emerald-500/10' },
             { icon: CalendarIcon, label: 'Open Calendar', path: '/dashboard/calendar', color: 'text-pink-500', bg: 'bg-pink-500/10' },
@@ -305,8 +305,22 @@ export default function Dashboard() {
                   {stats.recentSessions.map((session) => {
                     const subject = subjects.find(s => s.id === session.subjectId);
                     const isToday = session.startTime.startsWith(new Date().toISOString().split('T')[0]);
-                    const dateText = isToday ? 'Today' : new Date(session.startTime).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-                    const timeText = new Date(session.startTime).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+                    const startTime = new Date(session.startTime);
+                    const dateText = isToday ? 'Today' : startTime.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+                    const timeText = startTime.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+                    
+                    const now = new Date();
+                    const endTime = new Date(startTime.getTime() + session.durationMinutes * 60000);
+                    let statusText = 'Completed';
+                    let statusColor = 'text-[var(--color-success)]';
+                    
+                    if (now < startTime) {
+                      statusText = 'Scheduled';
+                      statusColor = 'text-[var(--color-primary)]';
+                    } else if (now >= startTime && now <= endTime) {
+                      statusText = 'In Progress';
+                      statusColor = 'text-[var(--color-warning)]';
+                    }
                     
                     return (
                       <li key={session.id} className="p-4 hover:bg-[var(--bg-color)]/50 transition-colors flex items-center justify-between group">
@@ -317,7 +331,7 @@ export default function Dashboard() {
                             <span>&bull;</span>
                             <span>{session.durationMinutes}m</span>
                             <span>&bull;</span>
-                            <span className="text-[var(--color-success)] font-medium">Completed</span>
+                            <span className={`${statusColor} font-medium`}>{statusText}</span>
                           </div>
                         </div>
                       </li>

@@ -221,8 +221,8 @@ export default function LandingPage() {
             <div className="flex flex-wrap justify-center gap-x-12 gap-y-6">
               {[
                 { icon: BarChart2, label: "Study Tracking" },
-                { icon: Target, label: "Goal Management" },
-                { icon: Timer, label: "Pomodoro Focus" },
+                { icon: BarChart2, label: "Analytics Dashboard" },
+                { icon: Timer, label: "Focus Timer" },
                 { icon: Calendar, label: "Calendar Planning" },
                 { icon: LineChart, label: "Rich Analytics" },
                 { icon: Bell, label: "Smart Reminders" },
@@ -260,8 +260,10 @@ export default function LandingPage() {
                 <div className="w-20 h-20 rounded-2xl bg-[var(--card-bg)] border-2 border-[var(--border-color)] group-hover:border-[var(--color-secondary)] shadow-sm flex items-center justify-center text-2xl font-bold text-[var(--color-secondary)] mb-6 transition-all group-hover:-translate-y-2 group-hover:shadow-[var(--color-secondary)]/20">
                   02
                 </div>
-                <h3 className="text-xl font-bold mb-3">Study</h3>
-                <p className="text-[var(--text-secondary)] leading-relaxed">Log manual study sessions or use the integrated Pomodoro timer for deep, focused work.</p>
+                <div className="space-y-4">
+                <h3 className="text-2xl font-bold text-[var(--text-primary)]">Track Your Sessions</h3>
+                <p className="text-[var(--text-secondary)] leading-relaxed">Log manual study sessions or use the integrated focus timer for deep, focused work.</p>
+              </div>
               </div>
 
               <div className="flex flex-col items-center text-center group cursor-default">
@@ -383,15 +385,15 @@ export default function LandingPage() {
               </div>
             </div>
 
-            {/* Feature 3: Pomodoro Showcase */}
+            {/* Feature 3: Timer Showcase */}
             <div className="flex flex-col lg:flex-row items-center gap-12 lg:gap-20">
               <div className="flex-1 space-y-6">
-                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-orange-500/10 text-orange-500 font-medium text-sm">
-                  <Timer className="h-4 w-4" /> Pomodoro Timer
+                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[var(--color-primary)]/10 text-[var(--color-primary)] font-medium text-sm">
+                  <Timer className="h-4 w-4" /> Focus Timer
                 </div>
-                <h2 className="text-3xl md:text-4xl font-bold">Focus mode, activated</h2>
+                <h3 className="text-3xl md:text-4xl font-bold text-[var(--text-primary)] tracking-tight">Stay focused.</h3>
                 <p className="text-lg text-[var(--text-secondary)] leading-relaxed">
-                  Use the scientifically proven Pomodoro technique to maintain deep focus. Complete sessions automatically log to your dashboard and update your goals.
+                  Use timeboxing techniques to maintain deep focus. Complete sessions automatically log to your dashboard and update your goals.
                 </p>
               </div>
               <div className="flex-1 w-full relative flex justify-center">
