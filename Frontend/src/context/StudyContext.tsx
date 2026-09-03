@@ -9,8 +9,8 @@ interface StudyState {
   sessions: StudySession[];
   events: CalendarEvent[];
   
-  
-  addSubject: (subject: Omit<Subject, 'id' | 'createdAt'>) => Promise<void>;
+  error: string | null;
+  refreshData: () => Promise<void>;
   updateSubject: (id: string, updates: Partial<Omit<Subject, 'id' | 'createdAt' | 'userId'>>) => Promise<void>;
   deleteSubject: (id: string) => Promise<void>;
   
@@ -36,6 +36,8 @@ const initialState: StudyState = {
   goals: [],
   sessions: [],
   events: [],
+  error: null,
+  refreshData: async () => {},
   addSubject: async () => {},
   updateSubject: async () => {},
   deleteSubject: async () => {},
@@ -61,6 +63,7 @@ export function StudyProvider({ children }: { children: React.ReactNode }) {
   const [sessions, setSessions] = useState<StudySession[]>([]);
   const [events, setEvents] = useState<CalendarEvent[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const { isAuthenticated } = useAuth();
 
@@ -68,24 +71,42 @@ export function StudyProvider({ children }: { children: React.ReactNode }) {
     if (!isAuthenticated) return;
     
     setIsLoading(true);
+    setError(null);
     try {
-      const [subjectsRes, goalsRes, sessionsRes, eventsRes] = await Promise.all([
-        api.get('/subjects').catch(() => ({ subjects: [] })),
-        api.get('/goals').catch(() => ({ goals: [] })),
-        api.get('/sessions').catch(() => ({ sessions: [] })),
-        api.get('/events').catch(() => ({ calendarEvents: [] }))
+      const results = await Promise.allSettled([
+        api.get('/subjects'),
+        api.get('/goals'),
+        api.get('/sessions'),
+        api.get('/events')
       ]);
 
-      setSubjects(subjectsRes.subjects || []);
-      setGoals(goalsRes.goals || []);
-      setSessions(sessionsRes.sessions || []);
-      setEvents(eventsRes.calendarEvents || []);
+      let hasError = false;
+
+      if (results[0].status === 'fulfilled') setSubjects(results[0].value.subjects || []);
+      else hasError = true;
+
+      if (results[1].status === 'fulfilled') setGoals(results[1].value.goals || []);
+      else hasError = true;
+
+      if (results[2].status === 'fulfilled') setSessions(results[2].value.sessions || []);
+      else hasError = true;
+
+      if (results[3].status === 'fulfilled') setEvents(results[3].value.calendarEvents || []);
+      else hasError = true;
+
+      if (hasError) {
+        setError('Unable to load some of your study data. Please try again.');
+      }
     } catch (e) {
-      console.error('Failed to fetch study data', e);
+      setError('Unable to load your study data. Please check your connection and try again.');
     } finally {
       setIsLoading(false);
     }
   }, [isAuthenticated]);
+
+  const refreshData = async () => {
+    await fetchInitialData();
+  };
 
   useEffect(() => {
     fetchInitialData();
@@ -97,12 +118,22 @@ export function StudyProvider({ children }: { children: React.ReactNode }) {
     return () => window.removeEventListener('auth:logout', handleLogout);
   }, []);
 
+  const resetData = () => {
+    setSubjects([]);
+    setGoals([]);
+    setSessions([]);
+    setEvents([]);
+    setError(null);
+  };
+
   const addSubject = async (subject: Omit<Subject, 'id' | 'createdAt'>) => {
+    setError(null);
     const data = await api.post('/subjects', subject);
     if (data.subject) setSubjects(prev => [...prev, data.subject]);
   };
 
   const updateSubject = async (id: string, updates: Partial<Omit<Subject, 'id' | 'createdAt' | 'userId'>>) => {
+    setError(null);
     const data = await api.put(`/subjects/${id}`, updates);
     if (data.subject) {
       setSubjects(prev => prev.map(s => s.id === id ? data.subject : s));
@@ -110,16 +141,19 @@ export function StudyProvider({ children }: { children: React.ReactNode }) {
   };
 
   const deleteSubject = async (id: string) => {
+    setError(null);
     await api.delete(`/subjects/${id}`);
     setSubjects(prev => prev.filter(s => s.id !== id));
   };
 
   const addGoal = async (goal: Omit<Goal, 'id' | 'createdAt' | 'completedHours' | 'isCompleted'>) => {
+    setError(null);
     const data = await api.post('/goals', goal);
     if (data.goal) setGoals(prev => [...prev, data.goal]);
   };
 
   const updateGoal = async (id: string, updates: Partial<Omit<Goal, 'id' | 'createdAt' | 'userId'>>) => {
+    setError(null);
     const data = await api.put(`/goals/${id}`, updates);
     if (data.goal) {
       setGoals(prev => prev.map(g => g.id === id ? data.goal : g));
@@ -127,6 +161,7 @@ export function StudyProvider({ children }: { children: React.ReactNode }) {
   };
 
   const updateGoalProgress = async (id: string, hoursToAdd: number) => {
+    setError(null);
     const goal = goals.find(g => g.id === id);
     if (!goal) return;
     
@@ -139,16 +174,19 @@ export function StudyProvider({ children }: { children: React.ReactNode }) {
   };
 
   const deleteGoal = async (id: string) => {
+    setError(null);
     await api.delete(`/goals/${id}`);
     setGoals(prev => prev.filter(g => g.id !== id));
   };
 
   const addSession = async (session: Omit<StudySession, 'id' | 'createdAt'>) => {
+    setError(null);
     const data = await api.post('/sessions', session);
     if (data.session) setSessions(prev => [data.session, ...prev]);
   };
 
   const updateSession = async (id: string, updates: Partial<Omit<StudySession, 'id' | 'createdAt' | 'userId'>>) => {
+    setError(null);
     const data = await api.put(`/sessions/${id}`, updates);
     if (data.session) {
       setSessions(prev => prev.map(s => s.id === id ? data.session : s));
@@ -156,16 +194,19 @@ export function StudyProvider({ children }: { children: React.ReactNode }) {
   };
 
   const deleteSession = async (id: string) => {
+    setError(null);
     await api.delete(`/sessions/${id}`);
     setSessions(prev => prev.filter(s => s.id !== id));
   };
 
   const addEvent = async (event: Omit<CalendarEvent, 'id' | 'createdAt'>) => {
+    setError(null);
     const data = await api.post('/events', event);
     if (data.calendarEvent) setEvents(prev => [...prev, data.calendarEvent]);
   };
 
   const updateEvent = async (id: string, updates: Partial<Omit<CalendarEvent, 'id' | 'createdAt' | 'userId'>>) => {
+    setError(null);
     const data = await api.put(`/events/${id}`, updates);
     if (data.calendarEvent) {
       setEvents(prev => prev.map(e => e.id === id ? data.calendarEvent : e));
@@ -173,20 +214,15 @@ export function StudyProvider({ children }: { children: React.ReactNode }) {
   };
 
   const deleteEvent = async (id: string) => {
+    setError(null);
     await api.delete(`/events/${id}`);
     setEvents(prev => prev.filter(e => e.id !== id));
-  };
-
-  const resetData = () => {
-    setSubjects([]);
-    setGoals([]);
-    setSessions([]);
-    setEvents([]);
   };
 
   return (
     <StudyContext.Provider value={{
       subjects, goals, sessions, events,
+      error, refreshData,
       addSubject, updateSubject, deleteSubject,
       addGoal, updateGoal, updateGoalProgress, deleteGoal,
       addSession, updateSession, deleteSession,
