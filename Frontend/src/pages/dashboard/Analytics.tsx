@@ -91,7 +91,31 @@ export default function Analytics() {
     const avgDailyMinutes = Math.floor(totalMinutesAllTime / activeDaysCount);
     const avgDailyTime = `${Math.floor(avgDailyMinutes / 60)}h ${avgDailyMinutes % 60}m`;
 
-    // Goals progress
+    // New Session Stats
+    const currentNow = new Date();
+    const currentDay = currentNow.getDay(); 
+    const diff = currentNow.getDate() - currentDay;
+    const firstDayOfWeekStr = new Date(currentNow.setDate(diff)).toISOString().split('T')[0];
+    const weekSessionsCount = sessions.filter(s => s.startTime >= firstDayOfWeekStr).length;
+    const monthSessionsCount = sessions.filter(s => s.startTime >= firstDayOfMonthStr).length;
+    
+    const avgSessionMins = sessions.length > 0 ? Math.round(totalMinutesAllTime / sessions.length) : 0;
+    const avgSessionTime = `${avgSessionMins} min`;
+
+    // Goals Stats
+    let completedGoals = 0;
+    let activeGoals = 0;
+    let overdueGoals = 0;
+    
+    goals.forEach(g => {
+      if (g.isCompleted) {
+        completedGoals++;
+      } else {
+        if (g.deadline < todayStr) overdueGoals++;
+        else activeGoals++;
+      }
+    });
+
     const totalGoalHours = goals.reduce((acc, g) => acc + g.targetHours, 0);
     const totalCompletedHours = goals.reduce((acc, g) => acc + g.completedHours, 0);
     const goalsProgress = totalGoalHours === 0 ? 0 : Math.round((totalCompletedHours / totalGoalHours) * 100);
@@ -140,6 +164,12 @@ export default function Analytics() {
       monthlyTime,
       avgDailyTime,
       goalsProgress,
+      weekSessionsCount,
+      monthSessionsCount,
+      avgSessionTime,
+      completedGoals,
+      activeGoals,
+      overdueGoals,
       weekLabels,
       weekData,
       subjectNames,
@@ -233,7 +263,7 @@ export default function Analytics() {
           </div>
 
       {/* KPI Cards */}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4 mb-6">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 mb-6">
         <Card>
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
@@ -278,13 +308,59 @@ export default function Analytics() {
 
         <Card>
           <CardContent className="p-6">
+            <div className="flex items-center justify-between mb-2">
+              <p className="text-sm font-medium text-[var(--text-secondary)]">Goal Status</p>
+              <div className="h-8 w-8 rounded-lg bg-[var(--color-success)]/10 flex items-center justify-center text-[var(--color-success)]">
+                <Target className="h-4 w-4" />
+              </div>
+            </div>
+            <div className="space-y-1">
+              <div className="flex justify-between text-sm">
+                <span className="text-[var(--text-secondary)]">Completed:</span>
+                <span className="font-bold text-[var(--text-primary)]">{stats.completedGoals}</span>
+              </div>
+              <div className="flex justify-between text-sm">
+                <span className="text-[var(--text-secondary)]">Active:</span>
+                <span className="font-bold text-[var(--color-primary)]">{stats.activeGoals}</span>
+              </div>
+              <div className="flex justify-between text-sm">
+                <span className="text-[var(--text-secondary)]">Overdue:</span>
+                <span className="font-bold text-[var(--color-warning)]">{stats.overdueGoals}</span>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between mb-2">
+              <p className="text-sm font-medium text-[var(--text-secondary)]">Sessions</p>
+              <div className="h-8 w-8 rounded-lg bg-[var(--color-primary)]/10 flex items-center justify-center text-[var(--color-primary)]">
+                <Activity className="h-4 w-4" />
+              </div>
+            </div>
+            <div className="space-y-1">
+              <div className="flex justify-between text-sm">
+                <span className="text-[var(--text-secondary)]">This Week:</span>
+                <span className="font-bold text-[var(--text-primary)]">{stats.weekSessionsCount}</span>
+              </div>
+              <div className="flex justify-between text-sm">
+                <span className="text-[var(--text-secondary)]">This Month:</span>
+                <span className="font-bold text-[var(--text-primary)]">{stats.monthSessionsCount}</span>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="p-6 flex flex-col justify-center h-full">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-[var(--text-secondary)]">Goal Progress</p>
-                <h3 className="text-2xl font-bold mt-1 text-[var(--text-primary)]">{stats.goalsProgress}%</h3>
+                <p className="text-sm font-medium text-[var(--text-secondary)]">Avg Session</p>
+                <h3 className="text-2xl font-bold mt-1 text-[var(--text-primary)]">{stats.avgSessionTime}</h3>
               </div>
-              <div className="h-12 w-12 rounded-2xl bg-[var(--color-success)]/10 flex items-center justify-center text-[var(--color-success)]">
-                <Target className="h-6 w-6" />
+              <div className="h-12 w-12 rounded-2xl bg-[var(--color-accent)]/10 flex items-center justify-center text-[var(--color-accent)]">
+                <Timer className="h-6 w-6" />
               </div>
             </div>
           </CardContent>

@@ -52,8 +52,8 @@ export function getBestStudyTime(sessions: StudySession[]): InsightResult {
 
   return {
     title: `Best Study Time ${emoji}`,
-    value: `You're most productive during the ${period}.`,
-    description: `Most of your study time happens between ${timeRange}.`,
+    value: `Most of your study time is in the ${period}.`,
+    description: `A majority of your recorded study time happens between ${timeRange}.`,
     status: 'info'
   };
 }
