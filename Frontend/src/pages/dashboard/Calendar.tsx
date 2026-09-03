@@ -4,10 +4,11 @@ import { Card, CardContent } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 import { Modal } from '../../components/ui/Modal';
 import { Input } from '../../components/ui/Input';
-import { ChevronLeft, ChevronRight, Plus, Trash2 } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Plus, Trash2, Edit2 } from 'lucide-react';
+import type { CalendarEvent } from '../../types';
 
 export default function CalendarView() {
-  const { events, subjects, addEvent, deleteEvent } = useStudyData();
+  const { events, subjects, addEvent, updateEvent, deleteEvent } = useStudyData();
   const [currentDate, setCurrentDate] = useState(new Date());
   
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -15,8 +16,33 @@ export default function CalendarView() {
   
   // Form
   const [title, setTitle] = useState('');
-  const [type, setType] = useState<'study' | 'assignment' | 'exam' | 'reminder'>('study');
+  const [type, setType] = useState<'study' | 'assignment' | 'exam' | 'reminder' | 'goal'>('study');
   const [subjectId, setSubjectId] = useState('');
+
+  const [editingEvent, setEditingEvent] = useState<CalendarEvent | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
+  const [error, setError] = useState('');
+  const [successMsg, setSuccessMsg] = useState('');
+
+  const openAddModal = (dateStr: string) => {
+    setEditingEvent(null);
+    setTitle('');
+    setType('study');
+    setSubjectId('');
+    setSelectedDate(dateStr);
+    setError('');
+    setIsModalOpen(true);
+  };
+
+  const openEditModal = (event: CalendarEvent) => {
+    setEditingEvent(event);
+    setTitle(event.title);
+    setType(event.type as any);
+    setSubjectId(event.subjectId || '');
+    setSelectedDate(event.date); // 'YYYY-MM-DD'
+    setError('');
+    setIsModalOpen(true);
+  };
 
   const getDaysInMonth = (year: number, month: number) => new Date(year, month + 1, 0).getDate();
   const getFirstDayOfMonth = (year: number, month: number) => new Date(year, month, 1).getDay();
@@ -37,22 +63,37 @@ export default function CalendarView() {
     const offset = d.getTimezoneOffset() * 60000;
     const localISOTime = (new Date(d.getTime() - offset)).toISOString().split('T')[0];
     
-    setSelectedDate(localISOTime);
-    setIsModalOpen(true);
+    openAddModal(localISOTime);
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (title && selectedDate) {
-      addEvent({
-        title,
-        date: selectedDate,
-        type,
-        subjectId: subjectId || undefined
-      });
-      setTitle('');
-      setSubjectId('');
-      setIsModalOpen(false);
+      setIsSaving(true);
+      setError('');
+      try {
+        const payload = {
+          title,
+          date: selectedDate,
+          type,
+          subjectId: subjectId || null
+        };
+
+        if (editingEvent) {
+          await updateEvent(editingEvent.id, payload);
+          setSuccessMsg('Event updated successfully');
+        } else {
+          await addEvent(payload as any);
+          setSuccessMsg('Event created successfully');
+        }
+        
+        setIsModalOpen(false);
+        setTimeout(() => setSuccessMsg(''), 3000);
+      } catch (err: any) {
+        setError(err.message || 'Failed to save event');
+      } finally {
+        setIsSaving(false);
+      }
     }
   };
 
@@ -110,13 +151,18 @@ export default function CalendarView() {
         <Button onClick={() => {
            const today = new Date();
            const offset = today.getTimezoneOffset() * 60000;
-           setSelectedDate((new Date(today.getTime() - offset)).toISOString().split('T')[0]);
-           setIsModalOpen(true);
+           openAddModal((new Date(today.getTime() - offset)).toISOString().split('T')[0]);
         }} className="shrink-0 gap-2">
           <Plus className="h-4 w-4" />
           Add Event
         </Button>
       </div>
+
+      {successMsg && (
+        <div className="bg-green-100 text-green-700 p-3 rounded-[var(--radius-base)] text-sm font-medium">
+          {successMsg}
+        </div>
+      )}
 
       <Card>
         <CardContent className="p-0">
@@ -148,8 +194,13 @@ export default function CalendarView() {
         </CardContent>
       </Card>
 
-      <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} title={`Add Event on ${selectedDate}`}>
+      <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} title={editingEvent ? "Edit Event" : `Add Event on ${selectedDate}`}>
         <form onSubmit={handleSubmit} className="space-y-4">
+          {error && (
+            <div className="p-3 bg-red-100 text-red-700 rounded text-sm mb-4">
+              {error}
+            </div>
+          )}
           <div>
             <label className="block text-sm font-medium text-[var(--text-primary)] mb-1">Event Title</label>
             <Input 
@@ -193,21 +244,28 @@ export default function CalendarView() {
              <div className="pt-4 mt-4 border-t border-[var(--border-color)]">
                <h4 className="text-sm font-medium text-[var(--text-secondary)] mb-2">Events on this day</h4>
                <ul className="space-y-2 max-h-32 overflow-y-auto">
-                 {events.filter(e => e.date === selectedDate).map(e => (
-                   <li key={e.id} className="flex justify-between items-center text-sm p-2 rounded bg-[var(--bg-color)] border border-[var(--border-color)]">
-                     <span className="truncate pr-2">{e.title}</span>
-                     <Button type="button" variant="ghost" size="icon" className="h-6 w-6 text-[var(--text-secondary)] hover:text-[var(--color-error)] shrink-0" onClick={() => deleteEvent(e.id)}>
-                       <Trash2 className="h-3 w-3" />
-                     </Button>
-                   </li>
-                 ))}
+                  {events.filter(e => e.date === selectedDate).map(e => (
+                    <li key={e.id} className="flex justify-between items-center text-sm p-2 rounded bg-[var(--bg-color)] border border-[var(--border-color)]">
+                      <span className="truncate pr-2">{e.title}</span>
+                      <div className="flex gap-1">
+                        <Button type="button" variant="ghost" size="icon" className="h-6 w-6 text-[var(--text-secondary)] hover:text-[var(--color-primary)] shrink-0" onClick={() => openEditModal(e)}>
+                          <Edit2 className="h-3 w-3" />
+                        </Button>
+                        <Button type="button" variant="ghost" size="icon" className="h-6 w-6 text-[var(--text-secondary)] hover:text-[var(--color-error)] shrink-0" onClick={() => deleteEvent(e.id)}>
+                          <Trash2 className="h-3 w-3" />
+                        </Button>
+                      </div>
+                    </li>
+                  ))}
                </ul>
              </div>
           )}
 
           <div className="flex justify-end gap-3 mt-8">
             <Button type="button" variant="ghost" onClick={() => setIsModalOpen(false)}>Cancel</Button>
-            <Button type="submit">Save Event</Button>
+            <Button type="submit" disabled={isSaving}>
+              {isSaving ? 'Saving...' : (editingEvent ? 'Update Event' : 'Save Event')}
+            </Button>
           </div>
         </form>
       </Modal>

@@ -24,6 +24,7 @@ interface StudyState {
   deleteSession: (id: string) => Promise<void>;
   
   addEvent: (event: Omit<CalendarEvent, 'id' | 'createdAt'>) => Promise<void>;
+  updateEvent: (id: string, updates: Partial<Omit<CalendarEvent, 'id' | 'createdAt' | 'userId'>>) => Promise<void>;
   deleteEvent: (id: string) => Promise<void>;
   
   isLoading: boolean;
@@ -46,6 +47,7 @@ const initialState: StudyState = {
   updateSession: async () => {},
   deleteSession: async () => {},
   addEvent: async () => {},
+  updateEvent: async () => {},
   deleteEvent: async () => {},
   isLoading: false,
   resetData: () => {},
@@ -163,6 +165,13 @@ export function StudyProvider({ children }: { children: React.ReactNode }) {
     if (data.calendarEvent) setEvents(prev => [...prev, data.calendarEvent]);
   };
 
+  const updateEvent = async (id: string, updates: Partial<Omit<CalendarEvent, 'id' | 'createdAt' | 'userId'>>) => {
+    const data = await api.put(`/events/${id}`, updates);
+    if (data.calendarEvent) {
+      setEvents(prev => prev.map(e => e.id === id ? data.calendarEvent : e));
+    }
+  };
+
   const deleteEvent = async (id: string) => {
     await api.delete(`/events/${id}`);
     setEvents(prev => prev.filter(e => e.id !== id));
@@ -181,7 +190,7 @@ export function StudyProvider({ children }: { children: React.ReactNode }) {
       addSubject, updateSubject, deleteSubject,
       addGoal, updateGoal, updateGoalProgress, deleteGoal,
       addSession, updateSession, deleteSession,
-      addEvent, deleteEvent,
+      addEvent, updateEvent, deleteEvent,
       isLoading, resetData
     }}>
       {children}
