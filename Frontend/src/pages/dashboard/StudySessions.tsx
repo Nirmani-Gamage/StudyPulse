@@ -4,10 +4,11 @@ import { Card, CardContent } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
 import { Modal } from '../../components/ui/Modal';
-import { BookOpen, Plus, Trash2, Clock } from 'lucide-react';
+import { BookOpen, Plus, Trash2, Clock, Edit2 } from 'lucide-react';
+import type { StudySession } from '../../types';
 
 export default function StudySessions() {
-  const { sessions, subjects, addSession, deleteSession } = useStudyData();
+  const { sessions, subjects, addSession, updateSession, deleteSession } = useStudyData();
   const [isModalOpen, setIsModalOpen] = useState(false);
   
   const [subjectId, setSubjectId] = useState('');
@@ -15,27 +16,70 @@ export default function StudySessions() {
   const [date, setDate] = useState('');
   const [notes, setNotes] = useState('');
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const [editingSession, setEditingSession] = useState<StudySession | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
+  const [error, setError] = useState('');
+  const [successMsg, setSuccessMsg] = useState('');
+
+  const openAddModal = () => {
+    setEditingSession(null);
+    setSubjectId('');
+    setDurationMinutes('');
+    setDate('');
+    setNotes('');
+    setError('');
+    setIsModalOpen(true);
+  };
+
+  const openEditModal = (session: StudySession) => {
+    setEditingSession(session);
+    setSubjectId(session.subjectId || '');
+    setDurationMinutes(session.durationMinutes.toString());
+    
+    // Format date for datetime-local input
+    const dt = new Date(session.startTime);
+    const tzoffset = dt.getTimezoneOffset() * 60000; 
+    const localISOTime = (new Date(dt.getTime() - tzoffset)).toISOString().slice(0, 16);
+    setDate(localISOTime);
+    
+    setNotes(session.notes || '');
+    setError('');
+    setIsModalOpen(true);
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (subjectId && durationMinutes && date) {
-      
-      const start = new Date(date);
-      const end = new Date(start.getTime() + Number(durationMinutes) * 60000);
-      
-      addSession({
-        subjectId,
-        startTime: start.toISOString(),
-        endTime: end.toISOString(),
-        durationMinutes: Number(durationMinutes),
-        type: 'manual',
-        notes: notes || undefined
-      });
-      
-      setSubjectId('');
-      setDurationMinutes('');
-      setDate('');
-      setNotes('');
-      setIsModalOpen(false);
+      setIsSaving(true);
+      setError('');
+      try {
+        const start = new Date(date);
+        const end = new Date(start.getTime() + Number(durationMinutes) * 60000);
+        
+        const payload = {
+          subjectId,
+          startTime: start.toISOString(),
+          endTime: end.toISOString(),
+          durationMinutes: Number(durationMinutes),
+          type: editingSession ? editingSession.type : 'manual',
+          notes: notes || undefined
+        };
+
+        if (editingSession) {
+          await updateSession(editingSession.id, payload);
+          setSuccessMsg('Session updated successfully');
+        } else {
+          await addSession(payload);
+          setSuccessMsg('Session logged successfully');
+        }
+        
+        setIsModalOpen(false);
+        setTimeout(() => setSuccessMsg(''), 3000);
+      } catch (err: any) {
+        setError(err.message || 'Failed to save session');
+      } finally {
+        setIsSaving(false);
+      }
     }
   };
 
@@ -46,11 +90,17 @@ export default function StudySessions() {
           <h1 className="text-3xl font-bold text-[var(--text-primary)] tracking-tight">Study Sessions</h1>
           <p className="text-[var(--text-secondary)] mt-1">Log and view your past study history.</p>
         </div>
-        <Button onClick={() => setIsModalOpen(true)} className="shrink-0 gap-2">
+        <Button onClick={openAddModal} className="shrink-0 gap-2">
           <Plus className="h-4 w-4" />
           Log Session
         </Button>
       </div>
+
+      {successMsg && (
+        <div className="bg-green-100 text-green-700 p-3 rounded-[var(--radius-base)] text-sm font-medium">
+          {successMsg}
+        </div>
+      )}
 
       {sessions.length === 0 ? (
         <Card className="flex flex-col items-center justify-center p-12 text-center border-dashed bg-transparent shadow-none">
@@ -59,7 +109,7 @@ export default function StudySessions() {
           </div>
           <h3 className="text-lg font-semibold text-[var(--text-primary)] mb-2">No sessions logged</h3>
           <p className="text-[var(--text-secondary)] max-w-sm mb-6">Log a manual session or use the Pomodoro timer to start tracking.</p>
-          <Button onClick={() => setIsModalOpen(true)}>Log Session</Button>
+          <Button onClick={openAddModal}>Log Session</Button>
         </Card>
       ) : (
         <div className="grid grid-cols-1 gap-4">
@@ -84,14 +134,24 @@ export default function StudySessions() {
                      <span className="text-xs uppercase font-bold text-[var(--text-secondary)] border border-[var(--border-color)] px-2 py-1 rounded-md">
                        {session.type}
                      </span>
-                     <Button 
-                        variant="ghost" 
-                        size="icon" 
-                        className="opacity-0 group-hover:opacity-100 transition-opacity text-[var(--text-secondary)] hover:text-[var(--color-error)]"
-                        onClick={() => deleteSession(session.id)}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
+                     <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                       <Button 
+                         variant="ghost" 
+                         size="icon" 
+                         className="text-[var(--text-secondary)] hover:text-[var(--color-primary)]"
+                         onClick={() => openEditModal(session)}
+                       >
+                         <Edit2 className="h-4 w-4" />
+                       </Button>
+                       <Button 
+                         variant="ghost" 
+                         size="icon" 
+                         className="text-[var(--text-secondary)] hover:text-[var(--color-error)]"
+                         onClick={() => deleteSession(session.id)}
+                       >
+                         <Trash2 className="h-4 w-4" />
+                       </Button>
+                     </div>
                    </div>
                  </CardContent>
               </Card>
@@ -100,8 +160,13 @@ export default function StudySessions() {
         </div>
       )}
 
-      <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} title="Log Study Session">
+      <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} title={editingSession ? "Edit Study Session" : "Log Study Session"}>
         <form onSubmit={handleSubmit} className="space-y-4">
+          {error && (
+            <div className="p-3 bg-red-100 text-red-700 rounded text-sm mb-4">
+              {error}
+            </div>
+          )}
           <div>
             <label className="block text-sm font-medium text-[var(--text-primary)] mb-1">Subject</label>
             <select 
@@ -149,7 +214,9 @@ export default function StudySessions() {
           </div>
           <div className="flex justify-end gap-3 mt-8">
             <Button type="button" variant="ghost" onClick={() => setIsModalOpen(false)}>Cancel</Button>
-            <Button type="submit" disabled={subjects.length === 0}>Save Session</Button>
+            <Button type="submit" disabled={subjects.length === 0 || isSaving}>
+              {isSaving ? 'Saving...' : (editingSession ? 'Update Session' : 'Save Session')}
+            </Button>
           </div>
         </form>
       </Modal>

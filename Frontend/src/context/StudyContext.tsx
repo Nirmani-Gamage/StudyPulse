@@ -20,6 +20,7 @@ interface StudyState {
   deleteGoal: (id: string) => Promise<void>;
   
   addSession: (session: Omit<StudySession, 'id' | 'createdAt'>) => Promise<void>;
+  updateSession: (id: string, updates: Partial<Omit<StudySession, 'id' | 'createdAt' | 'userId'>>) => Promise<void>;
   deleteSession: (id: string) => Promise<void>;
   
   addEvent: (event: Omit<CalendarEvent, 'id' | 'createdAt'>) => Promise<void>;
@@ -42,6 +43,7 @@ const initialState: StudyState = {
   updateGoalProgress: async () => {},
   deleteGoal: async () => {},
   addSession: async () => {},
+  updateSession: async () => {},
   deleteSession: async () => {},
   addEvent: async () => {},
   deleteEvent: async () => {},
@@ -144,6 +146,13 @@ export function StudyProvider({ children }: { children: React.ReactNode }) {
     if (data.session) setSessions(prev => [data.session, ...prev]);
   };
 
+  const updateSession = async (id: string, updates: Partial<Omit<StudySession, 'id' | 'createdAt' | 'userId'>>) => {
+    const data = await api.put(`/sessions/${id}`, updates);
+    if (data.session) {
+      setSessions(prev => prev.map(s => s.id === id ? data.session : s));
+    }
+  };
+
   const deleteSession = async (id: string) => {
     await api.delete(`/sessions/${id}`);
     setSessions(prev => prev.filter(s => s.id !== id));
@@ -171,7 +180,7 @@ export function StudyProvider({ children }: { children: React.ReactNode }) {
       subjects, goals, sessions, events,
       addSubject, updateSubject, deleteSubject,
       addGoal, updateGoal, updateGoalProgress, deleteGoal,
-      addSession, deleteSession,
+      addSession, updateSession, deleteSession,
       addEvent, deleteEvent,
       isLoading, resetData
     }}>
