@@ -60,6 +60,14 @@
   html {
     scroll-behavior: smooth;
   }
+
+  /* Fix for native date/time picker icons in dark mode */
+  .dark input[type="date"]::-webkit-calendar-picker-indicator,
+  .dark input[type="datetime-local"]::-webkit-calendar-picker-indicator,
+  .dark input[type="time"]::-webkit-calendar-picker-indicator {
+    filter: invert(1) brightness(90%);
+    cursor: pointer;
+  }
 }
 
 @layer utilities {

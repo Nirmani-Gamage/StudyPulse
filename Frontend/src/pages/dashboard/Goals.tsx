@@ -151,8 +151,8 @@ export default function Goals() {
                     </div>
                     <div className="h-2 w-full bg-[var(--bg-color)] rounded-full overflow-hidden">
                       <div 
-                        className={`h-full rounded-full transition-all duration-500 ${goal.isCompleted ? 'bg-[var(--color-success)]' : 'bg-[var(--color-primary)]'}`}
-                        style={{ width: `${progress}%` }}
+                        className={`h-full rounded-full transition-all duration-500 ${goal.isCompleted ? 'bg-[var(--color-success)]' : (subject ? '' : 'bg-[var(--color-primary)]')}`}
+                        style={{ width: `${progress}%`, backgroundColor: (!goal.isCompleted && subject) ? subject.color : undefined }}
                       />
                     </div>
                   </div>

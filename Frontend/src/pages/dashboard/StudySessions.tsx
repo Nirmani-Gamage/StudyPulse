@@ -8,22 +8,27 @@ import { BookOpen, Plus, Trash2, Clock, Edit2 } from 'lucide-react';
 import type { StudySession } from '../../types';
 
 export default function StudySessions() {
-  const { sessions, subjects, addSession, updateSession, deleteSession } = useStudyData();
+  const { sessions, subjects, addSession, updateSession, deleteSession, addSubject } = useStudyData();
   const [isModalOpen, setIsModalOpen] = useState(false);
   
-  const [subjectId, setSubjectId] = useState('');
+  const [subjectName, setSubjectName] = useState('');
   const [durationMinutes, setDurationMinutes] = useState('');
   const [date, setDate] = useState('');
   const [notes, setNotes] = useState('');
+  
+  const now = new Date();
+  const tzoffset = now.getTimezoneOffset() * 60000; 
+  const currentLocalISOTime = (new Date(now.getTime() - tzoffset)).toISOString().slice(0, 16);
 
   const [editingSession, setEditingSession] = useState<StudySession | null>(null);
+  const [sessionToDelete, setSessionToDelete] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
 
   const openAddModal = () => {
     setEditingSession(null);
-    setSubjectId('');
+    setSubjectName('');
     setDurationMinutes('');
     setDate('');
     setNotes('');
@@ -33,7 +38,8 @@ export default function StudySessions() {
 
   const openEditModal = (session: StudySession) => {
     setEditingSession(session);
-    setSubjectId(session.subjectId || '');
+    const subject = subjects.find(s => s.id === session.subjectId);
+    setSubjectName(subject ? subject.name : '');
     setDurationMinutes(session.durationMinutes.toString());
     
     // Format date for datetime-local input
@@ -49,15 +55,40 @@ export default function StudySessions() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (subjectId && durationMinutes && date) {
+    if (subjectName && durationMinutes && date) {
       setIsSaving(true);
       setError('');
       try {
+        let finalSubjectId = '';
+        const existingSubject = subjects.find(s => s.name.toLowerCase() === subjectName.toLowerCase().trim());
+        
+        if (existingSubject) {
+          finalSubjectId = existingSubject.id;
+        } else {
+          // Create new subject
+          const newSubject = await addSubject({
+            name: subjectName.trim(),
+            color: '#3b82f6', // default blue
+          });
+          if (newSubject) {
+            finalSubjectId = newSubject.id;
+          } else {
+            throw new Error('Failed to create subject');
+          }
+        }
+
         const start = new Date(date);
+        
+        if (start < new Date()) {
+          setError('Cannot select a date or time in the past');
+          setIsSaving(false);
+          return;
+        }
+
         const end = new Date(start.getTime() + Number(durationMinutes) * 60000);
         
         const payload = {
-          subjectId,
+          subjectId: finalSubjectId,
           startTime: start.toISOString(),
           endTime: end.toISOString(),
           durationMinutes: Number(durationMinutes),
@@ -128,9 +159,15 @@ export default function StudySessions() {
                      {session.notes && <p className="text-sm text-[var(--text-primary)] mt-2 italic">"{session.notes}"</p>}
                    </div>
                    <div className="flex items-center gap-4 w-full sm:w-auto justify-between sm:justify-end">
-                     <span className="bg-[var(--color-primary)]/10 text-[var(--color-primary)] px-3 py-1 rounded-md font-semibold text-sm">
-                       {session.durationMinutes} min
-                     </span>
+                      <span 
+                        className="px-3 py-1 rounded-md font-semibold text-sm"
+                        style={{ 
+                          backgroundColor: subject ? `${subject.color}15` : 'var(--color-primary)',
+                          color: subject ? subject.color : 'var(--color-primary)'
+                        }}
+                      >
+                        {session.durationMinutes} min
+                      </span>
                      <span className="text-xs uppercase font-bold text-[var(--text-secondary)] border border-[var(--border-color)] px-2 py-1 rounded-md">
                        {session.type}
                      </span>
@@ -143,14 +180,14 @@ export default function StudySessions() {
                        >
                          <Edit2 className="h-4 w-4" />
                        </Button>
-                       <Button 
-                         variant="ghost" 
-                         size="icon" 
-                         className="text-[var(--text-secondary)] hover:text-[var(--color-error)]"
-                         onClick={() => deleteSession(session.id)}
-                       >
-                         <Trash2 className="h-4 w-4" />
-                       </Button>
+                        <Button 
+                          variant="ghost" 
+                          size="icon" 
+                          className="text-[var(--text-secondary)] hover:text-[var(--color-error)]"
+                          onClick={() => setSessionToDelete(session.id)}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
                      </div>
                    </div>
                  </CardContent>
@@ -169,18 +206,19 @@ export default function StudySessions() {
           )}
           <div>
             <label className="block text-sm font-medium text-[var(--text-primary)] mb-1">Subject</label>
-            <select 
+            <Input 
               required
-              className="flex h-11 w-full rounded-[var(--radius-input)] border border-[var(--border-color)] bg-[var(--bg-color)] px-3 py-2 text-sm text-[var(--text-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]"
-              value={subjectId}
-              onChange={(e) => setSubjectId(e.target.value)}
-            >
-              <option value="">Select a subject...</option>
+              type="text"
+              placeholder="e.g. Mathematics"
+              value={subjectName}
+              onChange={(e) => setSubjectName(e.target.value)}
+              list="subjects-list"
+            />
+            <datalist id="subjects-list">
               {subjects.map(s => (
-                <option key={s.id} value={s.id}>{s.name}</option>
+                <option key={s.id} value={s.name} />
               ))}
-            </select>
-            {subjects.length === 0 && <p className="text-xs text-[var(--color-warning)] mt-1">Please create a subject first.</p>}
+            </datalist>
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div>
@@ -200,6 +238,7 @@ export default function StudySessions() {
                 required
                 type="datetime-local"
                 value={date}
+                min={currentLocalISOTime}
                 onChange={(e) => setDate(e.target.value)}
               />
             </div>
@@ -214,11 +253,31 @@ export default function StudySessions() {
           </div>
           <div className="flex justify-end gap-3 mt-8">
             <Button type="button" variant="ghost" onClick={() => setIsModalOpen(false)}>Cancel</Button>
-            <Button type="submit" disabled={subjects.length === 0 || isSaving}>
+            <Button type="submit" disabled={isSaving}>
               {isSaving ? 'Saving...' : (editingSession ? 'Update Session' : 'Save Session')}
             </Button>
           </div>
         </form>
+      </Modal>
+
+      <Modal isOpen={!!sessionToDelete} onClose={() => setSessionToDelete(null)} title="Delete Study Session">
+        <div className="space-y-4">
+          <p className="text-[var(--text-secondary)]">Are you sure you want to delete this study session? This action cannot be undone.</p>
+          <div className="flex justify-end gap-3 mt-8">
+            <Button variant="ghost" onClick={() => setSessionToDelete(null)}>Cancel</Button>
+            <Button 
+              className="bg-[var(--color-error)] text-white hover:bg-[var(--color-error)]/90"
+              onClick={() => {
+                if (sessionToDelete) {
+                  deleteSession(sessionToDelete);
+                  setSessionToDelete(null);
+                }
+              }}
+            >
+              Delete
+            </Button>
+          </div>
+        </div>
       </Modal>
     </div>
   );

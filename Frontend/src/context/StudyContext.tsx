@@ -11,7 +11,7 @@ interface StudyState {
   
   error: string | null;
   refreshData: () => Promise<void>;
-  addSubject: (subject: Omit<Subject, 'id' | 'createdAt'>) => Promise<void>;
+  addSubject: (subject: Omit<Subject, 'id' | 'createdAt'>) => Promise<Subject | undefined>;
   updateSubject: (id: string, updates: Partial<Omit<Subject, 'id' | 'createdAt' | 'userId'>>) => Promise<void>;
   deleteSubject: (id: string) => Promise<void>;
   
@@ -39,7 +39,7 @@ const initialState: StudyState = {
   events: [],
   error: null,
   refreshData: async () => {},
-  addSubject: async () => {},
+  addSubject: async () => undefined,
   updateSubject: async () => {},
   deleteSubject: async () => {},
   addGoal: async () => {},
@@ -130,7 +130,10 @@ export function StudyProvider({ children }: { children: React.ReactNode }) {
   const addSubject = async (subject: Omit<Subject, 'id' | 'createdAt'>) => {
     setError(null);
     const data = await api.post('/subjects', subject);
-    if (data.subject) setSubjects(prev => [...prev, data.subject]);
+    if (data.subject) {
+      setSubjects(prev => [...prev, data.subject]);
+      return data.subject;
+    }
   };
 
   const updateSubject = async (id: string, updates: Partial<Omit<Subject, 'id' | 'createdAt' | 'userId'>>) => {

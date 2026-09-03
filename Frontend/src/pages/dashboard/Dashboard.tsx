@@ -10,8 +10,10 @@ import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { getBestStudyTime } from '../../lib/insights';
 import { useProfile } from '../../hooks/useProfile';
+import { useAuth } from '../../context/AuthContext';
 
 export default function Dashboard() {
+  const { user } = useAuth();
   const { sessions, goals, events, subjects } = useStudyData();
   const { profile } = useProfile();
   const navigate = useNavigate();
@@ -149,7 +151,7 @@ export default function Dashboard() {
       <motion.div variants={itemVariants} className="flex flex-col gap-1">
         <p className="text-sm font-medium text-[var(--text-secondary)] uppercase tracking-wider">{currentDate}</p>
         <h1 className="text-3xl sm:text-4xl font-bold text-[var(--text-primary)] tracking-tight">
-          {greeting}, {profile.name || 'Student'} <span className="inline-block origin-bottom-right hover:animate-wave">👋</span>
+          {greeting}, {user?.name || profile.name || 'Student'} <span className="inline-block origin-bottom-right hover:animate-wave">👋</span>
         </h1>
         <p className="text-[var(--text-secondary)] mt-1 text-lg">Ready to make progress today?</p>
       </motion.div>
@@ -443,7 +445,8 @@ export default function Dashboard() {
                         </div>
                         <div className="h-2 w-full bg-[var(--bg-color)] rounded-full overflow-hidden border border-[var(--border-color)]/50">
                           <motion.div 
-                            className="h-full bg-[var(--color-primary)]" 
+                            className="h-full" 
+                            style={{ backgroundColor: subject ? subject.color : 'var(--color-primary)' }}
                             initial={{ width: 0 }}
                             animate={{ width: `${progress}%` }}
                             transition={{ duration: 1, ease: "easeOut" }}

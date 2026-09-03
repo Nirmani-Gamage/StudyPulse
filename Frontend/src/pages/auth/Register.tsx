@@ -7,6 +7,7 @@ export default function Register() {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
@@ -17,8 +18,14 @@ export default function Register() {
     setError('');
     setIsLoading(true);
 
+    if (password !== confirmPassword) {
+      setError('Passwords do not match');
+      setIsLoading(false);
+      return;
+    }
+
     try {
-      const data = await api.post('/auth/register', { name, email, password });
+      const data = await api.post('/auth/register', { name, email, password, confirmPassword });
       login(data.token, data.user);
       navigate('/dashboard');
     } catch (err: any) {
@@ -68,6 +75,18 @@ export default function Register() {
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
+              required
+              minLength={6}
+              className="w-full px-3 py-2 bg-[var(--bg-main)] border border-[var(--border-color)] rounded-[var(--radius-base)] focus:ring-2 focus:ring-[var(--color-primary)] outline-none transition-shadow"
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium mb-1">Confirm Password</label>
+            <input
+              type="password"
+              value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value)}
               required
               minLength={6}
               className="w-full px-3 py-2 bg-[var(--bg-main)] border border-[var(--border-color)] rounded-[var(--radius-base)] focus:ring-2 focus:ring-[var(--color-primary)] outline-none transition-shadow"

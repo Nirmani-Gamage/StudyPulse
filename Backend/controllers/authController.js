@@ -5,12 +5,18 @@ const User = require("../models/User");
 // REGISTER
 const register = async (req, res) => {
   try {
-    const { name, email, password } = req.body;
+    const { name, email, password, confirmPassword } = req.body;
 
     // Check required fields
-    if (!name || !email || !password) {
+    if (!name || !email || !password || !confirmPassword) {
       return res.status(400).json({
-        message: "Name, email and password are required",
+        message: "Name, email, password, and confirm password are required",
+      });
+    }
+
+    if (password !== confirmPassword) {
+      return res.status(400).json({
+        message: "Passwords do not match",
       });
     }
 
