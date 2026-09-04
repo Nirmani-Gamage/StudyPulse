@@ -2,7 +2,18 @@ import { useState, useEffect, useRef } from 'react';
 import { useStudyData } from '../../context/StudyContext';
 import { Card, CardContent } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
-import { Play, Pause, Square, Timer } from 'lucide-react';
+import { Play, Pause, Square, Timer, Target } from 'lucide-react';
+
+interface SavedTimer {
+  goalId: string;
+  subjectId: string;
+  customMinutes: number;
+  timeLeft: number;
+  isActive: boolean;
+  sessionStartTime: string | null;
+  expectedEndTime: number | null;
+  lastUpdated: number;
+}
 
 export default function Pomodoro() {
   const { subjects, goals, addSession, updateGoalProgress } = useStudyData();
@@ -15,11 +26,76 @@ export default function Pomodoro() {
   const [sessionStartTime, setSessionStartTime] = useState<Date | null>(null);
   const [expectedEndTime, setExpectedEndTime] = useState<number | null>(null);
   
+  const [savedTimers, setSavedTimers] = useState<Record<string, SavedTimer>>({});
+  const [isInitialized, setIsInitialized] = useState(false);
+  
   const [status, setStatus] = useState<{type: 'success' | 'error' | 'warning', message: string} | null>(null);
   const isCompletingRef = useRef(false);
 
   useEffect(() => {
-    if (goalId && !isActive) {
+    const stored = localStorage.getItem('studyPulse_timers');
+    if (stored) {
+      try {
+        setSavedTimers(JSON.parse(stored));
+      } catch (e) {
+        console.error('Failed to load saved timers', e);
+      }
+    }
+    setIsInitialized(true);
+  }, []);
+
+  const currentKey = goalId || 'general';
+
+  useEffect(() => {
+    if (isInitialized && subjectId && sessionStartTime) {
+      setSavedTimers(prev => {
+        const next = {
+          ...prev,
+          [currentKey]: {
+            goalId: currentKey,
+            subjectId,
+            customMinutes,
+            timeLeft,
+            isActive,
+            sessionStartTime: sessionStartTime.toISOString(),
+            expectedEndTime,
+            lastUpdated: Date.now()
+          }
+        };
+        localStorage.setItem('studyPulse_timers', JSON.stringify(next));
+        return next;
+      });
+    }
+  }, [timeLeft, isActive, expectedEndTime, customMinutes, subjectId, sessionStartTime, currentKey, isInitialized]);
+
+  const clearDraft = (keyToClear = currentKey) => {
+    setSavedTimers(prev => {
+      const next = { ...prev };
+      delete next[keyToClear];
+      localStorage.setItem('studyPulse_timers', JSON.stringify(next));
+      return next;
+    });
+  };
+
+  useEffect(() => {
+    if (!isInitialized) return;
+    
+    const key = goalId || 'general';
+    const draft = savedTimers[key];
+    
+    if (draft && !isActive) {
+      setCustomMinutes(draft.customMinutes);
+      setTimeLeft(draft.timeLeft);
+      setSubjectId(draft.subjectId);
+      setSessionStartTime(draft.sessionStartTime ? new Date(draft.sessionStartTime) : null);
+      setExpectedEndTime(draft.expectedEndTime);
+      
+      if (draft.isActive && draft.expectedEndTime) {
+         const remaining = Math.max(0, Math.round((draft.expectedEndTime - Date.now()) / 1000));
+         setTimeLeft(remaining);
+         setIsActive(true);
+      }
+    } else if (!draft && !isActive && goalId) {
       const selectedGoal = goals.find(g => g.id === goalId);
       if (selectedGoal) {
         const remainingHours = Math.max(0, selectedGoal.targetHours - selectedGoal.completedHours);
@@ -29,8 +105,10 @@ export default function Pomodoro() {
           setTimeLeft(remainingMinutes * 60);
         }
       }
+      setSessionStartTime(null);
+      setExpectedEndTime(null);
     }
-  }, [goalId, goals]);
+  }, [goalId, goals, isInitialized]);
 
   useEffect(() => {
     let interval: ReturnType<typeof setInterval>;
@@ -71,6 +149,7 @@ export default function Pomodoro() {
             } else {
               setStatus({ type: 'success', message: 'Session completed and saved successfully!' });
             }
+            clearDraft();
           } catch (e) {
             console.error('Failed to save pomodoro session', e);
             setStatus({ type: 'error', message: 'Failed to save Study Session. Please try again.' });
@@ -109,6 +188,7 @@ export default function Pomodoro() {
     setExpectedEndTime(null);
     setSessionStartTime(null);
     setStatus(null);
+    clearDraft();
   };
 
   const stopTimer = async () => {
@@ -148,6 +228,7 @@ export default function Pomodoro() {
       } else {
         setStatus({ type: 'success', message: 'Session stopped and saved successfully!' });
       }
+      clearDraft();
     } catch (e) {
       console.error('Failed to save session on stop', e);
       setStatus({ type: 'error', message: 'Failed to save Study Session on stop. Please try again.' });
@@ -298,6 +379,77 @@ export default function Pomodoro() {
             <p className="text-sm text-[var(--color-warning)] mt-6 flex items-center gap-2">
               <Timer className="h-4 w-4" /> Please select a subject first.
             </p>
+          )}
+
+          {/* Active Goals List */}
+          {goals.filter(g => !g.isCompleted).length > 0 && (
+            <div className="w-full mt-10 pt-8 border-t border-[var(--border-color)] animate-fade-in">
+              <h3 className="text-sm font-bold text-[var(--text-secondary)] uppercase tracking-wider mb-4 flex items-center gap-2">
+                <Target className="h-4 w-4" /> Active Goals
+              </h3>
+              <div className="space-y-3">
+                {goals.filter(g => !g.isCompleted).map(goal => {
+                  const s = subjects.find(sub => sub.id === goal.subjectId);
+                  const draft = savedTimers[goal.id];
+                  
+                  let minsLeft = 0;
+                  if (draft) {
+                    minsLeft = Math.ceil(draft.timeLeft / 60);
+                  } else {
+                    const remainingHours = Math.max(0, goal.targetHours - goal.completedHours);
+                    minsLeft = Math.ceil(remainingHours * 60);
+                  }
+                  
+                  return (
+                    <div key={goal.id} className="flex flex-col sm:flex-row sm:items-center justify-between p-4 rounded-[var(--radius-base)] bg-[var(--bg-color)] border border-[var(--border-color)] hover:border-[var(--color-primary)] transition-colors gap-4">
+                      <div>
+                        <p className="font-semibold text-sm text-[var(--text-primary)]">{goal.title}</p>
+                        <p className="text-xs text-[var(--text-secondary)] mt-1">{s?.name || 'General Subject'} &bull; {minsLeft}m remaining</p>
+                      </div>
+                      <div className="flex items-center gap-2 shrink-0">
+                        {draft && (
+                          <Button 
+                            size="sm" 
+                            variant="outline"
+                            onClick={() => clearDraft(goal.id)}
+                            className="h-8 w-8 p-0 text-[var(--text-secondary)] hover:text-[var(--color-error)]"
+                            title="Discard Draft"
+                          >
+                            <Square className="h-3 w-3" />
+                          </Button>
+                        )}
+                        <Button 
+                          size="sm" 
+                          className="h-8 text-xs font-semibold px-4"
+                          onClick={() => {
+                            if (draft) {
+                              setGoalId(goal.id);
+                              setSubjectId(draft.subjectId);
+                              setCustomMinutes(draft.customMinutes);
+                              setTimeLeft(draft.timeLeft);
+                              setSessionStartTime(draft.sessionStartTime ? new Date(draft.sessionStartTime) : null);
+                              setExpectedEndTime(draft.expectedEndTime);
+                              setIsActive(draft.isActive);
+                            } else {
+                              setGoalId(goal.id);
+                              if (goal.subjectId) setSubjectId(goal.subjectId);
+                              setCustomMinutes(minsLeft);
+                              setTimeLeft(minsLeft * 60);
+                              setSessionStartTime(null);
+                              setExpectedEndTime(null);
+                              setIsActive(false);
+                            }
+                            window.scrollTo({ top: 0, behavior: 'smooth' });
+                          }}
+                        >
+                          {draft ? 'Resume' : 'Study'}
+                        </Button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
           )}
         </CardContent>
       </Card>
