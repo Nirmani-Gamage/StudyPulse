@@ -18,6 +18,49 @@ export default function Register() {
     setError('');
     setIsLoading(true);
 
+    if (!name.trim() || !email.trim() || !password.trim() || !confirmPassword.trim()) {
+      setError('Please fill in all fields');
+      setIsLoading(false);
+      return;
+    }
+
+    if (name.trim().length < 2) {
+      setError('Name must be at least 2 characters long');
+      setIsLoading(false);
+      return;
+    }
+
+    if (!/^[a-zA-Z\s\-]+$/.test(name.trim())) {
+      setError('Name can only contain letters, spaces, and hyphens');
+      setIsLoading(false);
+      return;
+    }
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      setError('Please enter a valid email address');
+      setIsLoading(false);
+      return;
+    }
+
+    if (/[A-Z]/.test(email)) {
+      setError('Email cannot contain capital letters');
+      setIsLoading(false);
+      return;
+    }
+
+    if (password.length < 6) {
+      setError('Password must be at least 6 characters long');
+      setIsLoading(false);
+      return;
+    }
+
+    if (!/(?=.*[a-zA-Z])(?=.*[0-9])/.test(password)) {
+      setError('Password must contain at least one letter and one number');
+      setIsLoading(false);
+      return;
+    }
+
     if (password !== confirmPassword) {
       setError('Passwords do not match');
       setIsLoading(false);

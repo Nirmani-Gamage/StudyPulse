@@ -16,6 +16,25 @@ export default function Login() {
     setError('');
     setIsLoading(true);
 
+    if (!email.trim() || !password.trim()) {
+      setError('Please fill in all fields');
+      setIsLoading(false);
+      return;
+    }
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      setError('Please enter a valid email address');
+      setIsLoading(false);
+      return;
+    }
+
+    if (/[A-Z]/.test(email)) {
+      setError('Email cannot contain capital letters');
+      setIsLoading(false);
+      return;
+    }
+
     try {
       const data = await api.post('/auth/login', { email, password });
       login(data.token, data.user);
