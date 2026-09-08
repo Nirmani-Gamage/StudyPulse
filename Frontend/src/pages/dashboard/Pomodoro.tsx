@@ -353,7 +353,7 @@ export default function Pomodoro() {
             </Button>
             
             <Button 
-              variant="default"
+              variant="danger"
               className="h-14 px-6 rounded-full gap-2 text-md shadow-lg bg-[var(--color-error)] text-white hover:bg-[var(--color-error)]/90 transition-all flex items-center justify-center"
               onClick={stopTimer}
               disabled={!sessionStartTime}

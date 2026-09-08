@@ -1,13 +1,13 @@
 import { useMemo, useState, useEffect } from 'react';
 import { 
   Clock, Flame, Target, Zap, Calendar as CalendarIcon, 
-  Timer, BookOpen, AlertCircle, Play, PlusCircle, BarChart2, Lightbulb
+  Timer, BookOpen, Play, PlusCircle, Lightbulb, X, Square, ChevronRight, Pause
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 import { useStudyData } from '../../context/StudyContext';
 import { Link, useNavigate } from 'react-router-dom';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { getBestStudyTime } from '../../lib/insights';
 import { useProfile } from '../../hooks/useProfile';
 import { useAuth } from '../../context/AuthContext';
@@ -19,9 +19,16 @@ export default function Dashboard() {
   const navigate = useNavigate();
   const [greeting, setGreeting] = useState('');
   const [currentDate, setCurrentDate] = useState('');
+  
+  const [activeTab, setActiveTab] = useState<'activity' | 'goals'>('activity');
+  const [showInsight, setShowInsight] = useState(true);
+
+  // Mini Timer State
+  const [timeLeft, setTimeLeft] = useState(25 * 60);
+  const [isTimerActive, setIsTimerActive] = useState(false);
+  const [expectedEndTime, setExpectedEndTime] = useState<number | null>(null);
 
   useEffect(() => {
-    
     const hour = new Date().getHours();
     if (hour < 12) setGreeting('Good morning');
     else if (hour < 18) setGreeting('Good afternoon');
@@ -32,6 +39,102 @@ export default function Dashboard() {
     }));
   }, []);
 
+  // Timer init from localStorage
+  useEffect(() => {
+    const stored = localStorage.getItem('studyPulse_timers');
+    if (stored) {
+      try {
+        const timers = JSON.parse(stored);
+        const general = timers['general'];
+        if (general) {
+           setTimeLeft(general.timeLeft);
+           if (general.isActive && general.expectedEndTime) {
+              const remaining = Math.max(0, Math.round((general.expectedEndTime - Date.now()) / 1000));
+              setTimeLeft(remaining);
+              setIsTimerActive(true);
+              setExpectedEndTime(general.expectedEndTime);
+           }
+        }
+      } catch (e) {}
+    }
+  }, []);
+
+  // Timer interval logic
+  useEffect(() => {
+    let interval: ReturnType<typeof setInterval>;
+    if (isTimerActive && expectedEndTime) {
+      interval = setInterval(() => {
+        const remaining = Math.max(0, Math.round((expectedEndTime - Date.now()) / 1000));
+        setTimeLeft(remaining);
+        if (remaining <= 0) {
+          setIsTimerActive(false);
+          setExpectedEndTime(null);
+        }
+      }, 1000);
+    }
+    return () => clearInterval(interval);
+  }, [isTimerActive, expectedEndTime]);
+
+  const toggleMiniTimer = () => {
+    if (!isTimerActive) {
+      const end = Date.now() + timeLeft * 1000;
+      setExpectedEndTime(end);
+      setIsTimerActive(true);
+      
+      const stored = localStorage.getItem('studyPulse_timers');
+      let timers: any = {};
+      if (stored) { try { timers = JSON.parse(stored); } catch (e) {} }
+      timers['general'] = {
+        ...(timers['general'] || { goalId: 'general', subjectId: '', customMinutes: 25 }),
+        timeLeft,
+        isActive: true,
+        expectedEndTime: end,
+        lastUpdated: Date.now()
+      };
+      localStorage.setItem('studyPulse_timers', JSON.stringify(timers));
+    } else {
+      setIsTimerActive(false);
+      setExpectedEndTime(null);
+      
+      const stored = localStorage.getItem('studyPulse_timers');
+      if (stored) {
+        try {
+          const timers = JSON.parse(stored);
+          if (timers['general']) {
+            timers['general'].isActive = false;
+            timers['general'].expectedEndTime = null;
+            timers['general'].timeLeft = timeLeft;
+            localStorage.setItem('studyPulse_timers', JSON.stringify(timers));
+          }
+        } catch (e) {}
+      }
+    }
+  };
+
+  const resetMiniTimer = () => {
+    setIsTimerActive(false);
+    setTimeLeft(25 * 60);
+    setExpectedEndTime(null);
+    const stored = localStorage.getItem('studyPulse_timers');
+    if (stored) {
+      try {
+        const timers = JSON.parse(stored);
+        if (timers['general']) {
+          timers['general'].isActive = false;
+          timers['general'].expectedEndTime = null;
+          timers['general'].timeLeft = 25 * 60;
+          localStorage.setItem('studyPulse_timers', JSON.stringify(timers));
+        }
+      } catch (e) {}
+    }
+  };
+
+  const formatTime = (seconds: number) => {
+    const m = Math.floor(seconds / 60);
+    const s = seconds % 60;
+    return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+  };
+
   const stats = useMemo(() => {
     const now = new Date();
     const todayStr = now.toISOString().split('T')[0];
@@ -40,7 +143,6 @@ export default function Dashboard() {
     const todayMinutes = todaySessions.reduce((acc, s) => acc + s.durationMinutes, 0);
     const todayStudyTime = `${Math.floor(todayMinutes / 60)}h ${todayMinutes % 60}m`;
     
-    // Calculate yesterday for comparison
     const yesterday = new Date(now);
     yesterday.setDate(yesterday.getDate() - 1);
     const yesterdayStr = yesterday.toISOString().split('T')[0];
@@ -130,351 +232,356 @@ export default function Dashboard() {
     show: { opacity: 1, y: 0 }
   };
 
-  const getEventColor = (type: string) => {
-    switch (type) {
-      case 'exam': return 'text-[var(--color-error)] bg-[var(--color-error)]/10';
-      case 'assignment': return 'text-[var(--color-warning)] bg-[var(--color-warning)]/10';
-      case 'study': return 'text-[var(--color-primary)] bg-[var(--color-primary)]/10';
-      case 'goal': return 'text-[var(--color-success)] bg-[var(--color-success)]/10';
-      default: return 'text-[var(--text-secondary)] bg-[var(--bg-color)]';
-    }
-  };
-
   return (
     <motion.div 
-      className="space-y-8 pb-12"
+      className="max-w-7xl mx-auto space-y-8 pb-12"
       initial="hidden"
       animate="show"
       variants={containerVariants}
     >
-      {/* Greeting Section */}
-      <motion.div variants={itemVariants} className="flex flex-col gap-1">
-        <p className="text-sm font-medium text-[var(--text-secondary)] uppercase tracking-wider">{currentDate}</p>
-        <h1 className="text-3xl sm:text-4xl font-bold text-[var(--text-primary)] tracking-tight">
-          {greeting}, {user?.name || profile.name || 'Student'} <span className="inline-block origin-bottom-right hover:animate-wave">👋</span>
-        </h1>
-        <p className="text-[var(--text-secondary)] mt-1 text-lg">Ready to make progress today?</p>
-      </motion.div>
-
-      {/* KPI Cards */}
-      <motion.div variants={itemVariants} className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <motion.div whileHover={{ y: -2 }} transition={{ duration: 0.2 }}>
-          <Card className="h-full">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div className="space-y-1">
-                  <p className="text-sm font-medium text-[var(--text-secondary)]">Today's Study Time</p>
-                  <h3 className="text-2xl font-bold text-[var(--text-primary)]">{stats.todayStudyTime}</h3>
-                </div>
-                <div className="h-12 w-12 rounded-2xl bg-[var(--color-primary)]/10 flex items-center justify-center text-[var(--color-primary)]">
-                  <Clock className="h-6 w-6" />
-                </div>
-              </div>
-              <p className="text-xs text-[var(--text-secondary)] mt-4">{stats.diffText}</p>
-            </CardContent>
-          </Card>
-        </motion.div>
+      {/* HEADER & QUICK ACTIONS */}
+      <motion.div variants={itemVariants} className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
+        <div className="flex flex-col gap-1">
+          <p className="text-sm font-medium text-[var(--text-secondary)] uppercase tracking-wider">{currentDate}</p>
+          <h1 className="text-3xl sm:text-4xl font-bold text-[var(--text-primary)] tracking-tight">
+            {greeting}, {user?.name || profile.name || 'Student'} <span className="inline-block origin-bottom-right hover:animate-wave">👋</span>
+          </h1>
+          <p className="text-[var(--text-secondary)] mt-1 text-lg">Ready to make progress today?</p>
+        </div>
         
-        <motion.div whileHover={{ y: -2 }} transition={{ duration: 0.2 }}>
-          <Card className="h-full">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div className="space-y-1">
-                  <p className="text-sm font-medium text-[var(--text-secondary)]">Study Streak</p>
-                  <h3 className="text-2xl font-bold text-[var(--text-primary)]">{stats.studyStreak} days</h3>
-                </div>
-                <div className="h-12 w-12 rounded-2xl bg-[var(--color-warning)]/10 flex items-center justify-center text-[var(--color-warning)]">
-                  <Flame className="h-6 w-6" />
-                </div>
-              </div>
-              <p className="text-xs text-[var(--text-secondary)] mt-4">
-                {stats.studyStreak > 0 ? "Keep it going!" : "Start a session today!"}
-              </p>
-            </CardContent>
-          </Card>
-        </motion.div>
-
-        <motion.div whileHover={{ y: -2 }} transition={{ duration: 0.2 }}>
-          <Card className="h-full">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div className="space-y-1">
-                  <p className="text-sm font-medium text-[var(--text-secondary)]">Goals Progress</p>
-                  <h3 className="text-2xl font-bold text-[var(--text-primary)]">{stats.goalsProgress}%</h3>
-                </div>
-                <div className="h-12 w-12 rounded-2xl bg-[var(--color-success)]/10 flex items-center justify-center text-[var(--color-success)]">
-                  <Target className="h-6 w-6" />
-                </div>
-              </div>
-              <p className="text-xs text-[var(--text-secondary)] mt-4">{stats.goalsText}</p>
-            </CardContent>
-          </Card>
-        </motion.div>
-
-        <motion.div whileHover={{ y: -2 }} transition={{ duration: 0.2 }}>
-          <Card className="h-full">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div className="space-y-1">
-                  <p className="text-sm font-medium text-[var(--text-secondary)]">Focus Score</p>
-                  <h3 className="text-2xl font-bold text-[var(--text-primary)]">{stats.focusScore}/100</h3>
-                </div>
-                <div className="h-12 w-12 rounded-2xl bg-[var(--color-accent)]/10 flex items-center justify-center text-[var(--color-accent)]">
-                  <Zap className="h-6 w-6" />
-                </div>
-              </div>
-              <p className="text-xs text-[var(--text-secondary)] mt-4">
-                {stats.focusScore >= 80 ? "Great focus today!" : stats.focusScore >= 50 ? "Good effort today" : "Room for more focus"}
-              </p>
-            </CardContent>
-          </Card>
-        </motion.div>
-      </motion.div>
-
-      {/* Learning Insight Preview */}
-      <motion.div variants={itemVariants}>
-        <Card className="border-[var(--color-primary)]/30 bg-[var(--color-primary)]/5">
-          <CardContent className="p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-            <div className="flex items-center gap-3">
-              <div className="h-10 w-10 rounded-full bg-[var(--color-primary)]/10 flex items-center justify-center text-[var(--color-primary)] shrink-0">
-                <Lightbulb className="h-5 w-5" />
-              </div>
-              <div>
-                <h4 className="text-sm font-bold text-[var(--text-primary)]">Learning Insight 💡</h4>
-                <p className="text-sm text-[var(--text-secondary)] mt-0.5">{stats.bestTimeInsight.value} {stats.bestTimeInsight.description}</p>
-              </div>
-            </div>
-            <Link to="/dashboard/analytics">
-              <Button variant="outline" size="sm" className="shrink-0 w-full sm:w-auto">View All Insights</Button>
-            </Link>
-          </CardContent>
-        </Card>
-      </motion.div>
-
-      {/* Quick Actions */}
-      <motion.div variants={itemVariants}>
-        <h2 className="text-lg font-semibold text-[var(--text-primary)] mb-4">Quick Actions</h2>
-        <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3">
-          {[
-            { icon: Play, label: 'Start Session', path: '/dashboard/sessions', color: 'text-blue-500', bg: 'bg-blue-500/10' },
-            { icon: Timer, label: 'Start Timer', path: '/dashboard/pomodoro', color: 'text-orange-500', bg: 'bg-orange-500/10' },
-            { icon: PlusCircle, label: 'Add Subject', path: '/dashboard/subjects', color: 'text-purple-500', bg: 'bg-purple-500/10' },
-            { icon: Target, label: 'Add Goal', path: '/dashboard/goals', color: 'text-emerald-500', bg: 'bg-emerald-500/10' },
-            { icon: CalendarIcon, label: 'Open Calendar', path: '/dashboard/calendar', color: 'text-pink-500', bg: 'bg-pink-500/10' },
-            { icon: BarChart2, label: 'View Analytics', path: '/dashboard/analytics', color: 'text-indigo-500', bg: 'bg-indigo-500/10' },
-          ].map((action, i) => (
-            <motion.button
-              key={i}
-              whileHover={{ y: -2, scale: 1.02 }}
-              whileTap={{ scale: 0.98 }}
-              onClick={() => navigate(action.path)}
-              className="flex flex-col items-center justify-center gap-3 p-4 rounded-[var(--radius-card)] bg-[var(--card-bg)] border border-[var(--border-color)] hover:border-[var(--color-primary)] transition-colors shadow-soft focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)] focus:ring-offset-2 focus:ring-offset-[var(--bg-color)]"
-            >
-              <div className={`h-10 w-10 rounded-full flex items-center justify-center ${action.bg} ${action.color}`}>
-                <action.icon className="h-5 w-5" />
-              </div>
-              <span className="text-sm font-medium text-[var(--text-primary)] text-center">{action.label}</span>
-            </motion.button>
-          ))}
+        <div className="flex flex-wrap items-center gap-3">
+          <Button variant="outline" className="gap-2 shrink-0 bg-[var(--card-bg)] shadow-sm hover:border-[var(--color-primary)] transition-colors" onClick={() => navigate('/dashboard/subjects')}>
+            <PlusCircle className="h-4 w-4 text-purple-500" />
+            <span className="hidden sm:inline">Add Subject</span>
+          </Button>
+          <Button variant="outline" className="gap-2 shrink-0 bg-[var(--card-bg)] shadow-sm hover:border-[var(--color-primary)] transition-colors" onClick={() => navigate('/dashboard/sessions')}>
+            <Play className="h-4 w-4 text-blue-500" />
+            <span className="hidden sm:inline">Start Session</span>
+          </Button>
+          <Button variant="outline" className="gap-2 shrink-0 bg-[var(--card-bg)] shadow-sm hover:border-[var(--color-primary)] transition-colors" onClick={() => navigate('/dashboard/goals')}>
+            <Target className="h-4 w-4 text-emerald-500" />
+            <span className="hidden sm:inline">Add Goal</span>
+          </Button>
+          <Button variant="outline" className="gap-2 shrink-0 bg-[var(--card-bg)] shadow-sm hover:border-[var(--color-primary)] transition-colors" onClick={() => navigate('/dashboard/calendar')}>
+            <CalendarIcon className="h-4 w-4 text-pink-500" />
+            <span className="hidden sm:inline">Calendar</span>
+          </Button>
         </div>
       </motion.div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Recent Sessions */}
-        <motion.div variants={itemVariants} className="flex h-full">
-          <Card className="w-full flex flex-col">
-            <CardHeader className="border-b border-[var(--border-color)] pb-3 flex flex-row items-center justify-between">
-              <CardTitle className="text-base flex items-center gap-2"><BookOpen className="h-4 w-4 text-[var(--color-primary)]" /> Recent Sessions</CardTitle>
-              <Link to="/dashboard/sessions">
-                <Button variant="ghost" size="sm" className="h-8 text-[var(--color-primary)] -mr-2 text-xs font-medium">
-                  View All
-                </Button>
-              </Link>
-            </CardHeader>
-            <CardContent className="p-0 flex-1 flex flex-col">
-              {stats.recentSessions.length === 0 ? (
-                <div className="flex-1 flex flex-col items-center justify-center p-8 text-center min-h-[200px]">
-                  <div className="h-12 w-12 rounded-full bg-[var(--border-color)]/30 flex items-center justify-center mb-3">
-                    <BookOpen className="h-6 w-6 text-[var(--text-secondary)]" />
-                  </div>
-                  <p className="text-[var(--text-primary)] font-medium mb-1">No study sessions yet</p>
-                  <p className="text-[var(--text-secondary)] text-sm">Start your first study session to begin tracking your progress.</p>
-                </div>
-              ) : (
-                <ul className="divide-y divide-[var(--border-color)] flex-1">
-                  {stats.recentSessions.map((session) => {
-                    const subject = subjects.find(s => s.id === session.subjectId);
-                    const isToday = session.startTime.startsWith(new Date().toISOString().split('T')[0]);
-                    const startTime = new Date(session.startTime);
-                    const dateText = isToday ? 'Today' : startTime.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-                    const timeText = startTime.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
-                    
-                    const now = new Date();
-                    const endTime = new Date(startTime.getTime() + session.durationMinutes * 60000);
-                    let statusText = 'Completed';
-                    let statusColor = 'text-[var(--color-success)]';
-                    
-                    if (now < startTime) {
-                      statusText = 'Scheduled';
-                      statusColor = 'text-[var(--color-primary)]';
-                    } else if (now >= startTime && now <= endTime) {
-                      statusText = 'In Progress';
-                      statusColor = 'text-[var(--color-warning)]';
-                    }
-                    
-                    return (
-                      <li key={session.id} className="p-4 hover:bg-[var(--bg-color)]/50 transition-colors flex items-center justify-between group">
-                        <div className="flex flex-col gap-1">
-                          <p className="font-semibold text-[var(--text-primary)] text-sm">{subject?.name || 'Unknown Subject'}</p>
-                          <div className="flex items-center gap-2 text-xs text-[var(--text-secondary)]">
-                            <span>{dateText} &middot; {timeText}</span>
-                            <span>&bull;</span>
-                            <span>{session.durationMinutes}m</span>
-                            <span>&bull;</span>
-                            <span className={`${statusColor} font-medium`}>{statusText}</span>
-                          </div>
-                        </div>
-                      </li>
-                    )
-                  })}
-                </ul>
-              )}
-            </CardContent>
-          </Card>
-        </motion.div>
-
-        {/* Upcoming Events & Deadlines */}
-        <motion.div variants={itemVariants} className="flex flex-col gap-6">
-          {/* Next Deadline Highlight */}
-          <Card className="bg-[var(--card-bg)] overflow-hidden border-[var(--border-color)] shadow-soft relative">
-            {stats.nextDeadline && <div className="absolute top-0 left-0 w-1 h-full bg-[var(--color-error)]"></div>}
-            <CardContent className="p-5 flex items-center justify-between pl-6 relative">
-              {stats.nextDeadline ? (
-                <div>
-                  <p className="text-xs font-bold text-[var(--color-error)] tracking-wider uppercase mb-1">Next {stats.nextDeadline.type}</p>
-                  <h3 className="text-lg font-bold text-[var(--text-primary)] mb-1">{stats.nextDeadline.title}</h3>
-                  <p className="text-sm font-medium text-[var(--text-secondary)] flex items-center gap-1.5">
-                    <AlertCircle className="h-4 w-4" />
-                    {stats.deadlineDays === 0 ? 'Today' : stats.deadlineDays === 1 ? 'Tomorrow' : `${stats.deadlineDays} days remaining`}
-                  </p>
-                </div>
-              ) : (
-                <div className="py-1">
-                  <h3 className="text-lg font-bold text-[var(--text-primary)] mb-1">No upcoming deadlines</h3>
-                  <p className="text-sm text-[var(--text-secondary)]">You're all caught up!</p>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-
-          {/* Calendar Preview */}
-          <Card className="flex-1 flex flex-col">
-            <CardHeader className="border-b border-[var(--border-color)] pb-3 flex flex-row items-center justify-between">
-              <CardTitle className="text-base flex items-center gap-2"><CalendarIcon className="h-4 w-4 text-[var(--color-primary)]" /> Upcoming Events</CardTitle>
-              <Link to="/dashboard/calendar">
-                <Button variant="ghost" size="sm" className="h-8 text-[var(--color-primary)] -mr-2 text-xs font-medium">
-                  Open Calendar
-                </Button>
-              </Link>
-            </CardHeader>
-            <CardContent className="p-0 flex-1 flex flex-col">
-              {stats.upcomingEvents.length === 0 ? (
-                <div className="flex-1 flex flex-col items-center justify-center p-8 text-center min-h-[140px]">
-                  <div className="h-10 w-10 rounded-full bg-[var(--border-color)]/30 flex items-center justify-center mb-3">
-                    <CalendarIcon className="h-5 w-5 text-[var(--text-secondary)]" />
-                  </div>
-                  <p className="text-[var(--text-primary)] font-medium mb-1">No events scheduled</p>
-                  <p className="text-[var(--text-secondary)] text-sm">Add events to your calendar to keep track.</p>
-                </div>
-              ) : (
-                <ul className="divide-y divide-[var(--border-color)] flex-1">
-                  {stats.upcomingEvents.map((event) => {
-                    const isToday = event.date === new Date().toISOString().split('T')[0];
-                    const dateText = isToday ? 'Today' : new Date(event.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-                    
-                    return (
-                      <li key={event.id} className="p-4 hover:bg-[var(--bg-color)]/50 transition-colors flex items-center justify-between">
-                        <div className="flex items-center gap-3">
-                          <div className={`px-2 py-1 rounded text-[10px] font-bold uppercase tracking-wider ${getEventColor(event.type)}`}>
-                            {event.type}
-                          </div>
-                          <p className="font-medium text-[var(--text-primary)] text-sm">{event.title}</p>
-                        </div>
-                        <span className="text-xs text-[var(--text-secondary)] font-medium">{dateText}</span>
-                      </li>
-                    )
-                  })}
-                </ul>
-              )}
-            </CardContent>
-          </Card>
-        </motion.div>
-      </div>
-
-      {/* Goal Progress Preview */}
-      <motion.div variants={itemVariants}>
-        <Card>
-          <CardHeader className="border-b border-[var(--border-color)] pb-3 flex flex-row items-center justify-between">
-            <CardTitle className="text-base flex items-center gap-2"><Target className="h-4 w-4 text-[var(--color-success)]" /> Active Goals</CardTitle>
-            <Link to="/dashboard/goals">
-              <Button variant="ghost" size="sm" className="h-8 text-[var(--color-primary)] -mr-2 text-xs font-medium">
-                View All Goals
-              </Button>
-            </Link>
-          </CardHeader>
-          <CardContent className="p-0">
-            {stats.activeGoals.length === 0 ? (
-               <div className="flex flex-col items-center justify-center p-8 text-center">
-                 <div className="h-12 w-12 rounded-full bg-[var(--border-color)]/30 flex items-center justify-center mb-3">
-                   <Target className="h-6 w-6 text-[var(--text-secondary)]" />
+      {/* MAIN CONTENT + SMART SIDEBAR LAYOUT */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+        
+        {/* MAIN CONTENT (~65%) */}
+        <div className="lg:col-span-8 flex flex-col gap-8">
+          
+          {/* KPI Cards */}
+          <motion.div variants={itemVariants} className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <Card className="p-5 flex flex-col justify-between hover:shadow-md transition-shadow">
+               <div className="flex items-center gap-3 mb-3">
+                 <div className="p-1.5 rounded-lg bg-[var(--color-primary)]/10 text-[var(--color-primary)]">
+                   <Clock className="h-4 w-4" />
                  </div>
-                 <p className="text-[var(--text-primary)] font-medium mb-1">No active goals</p>
-                 <p className="text-[var(--text-secondary)] text-sm mb-4">Create your first goal to start tracking progress.</p>
-                 <Link to="/dashboard/goals">
-                   <Button variant="outline" size="sm">Add Goal</Button>
-                 </Link>
+                 <p className="text-xs font-semibold text-[var(--text-secondary)] uppercase tracking-wider">Study Time</p>
                </div>
-            ) : (
-              <div className="p-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {stats.activeGoals.map(goal => {
-                  const subject = subjects.find(s => s.id === goal.subjectId);
-                  const progress = Math.min(100, Math.round((goal.completedHours / goal.targetHours) * 100));
-                  
-                  return (
-                    <div key={goal.id} className="space-y-3">
-                      <div className="flex justify-between items-start">
-                        <div>
-                          <h4 className="font-semibold text-[var(--text-primary)] text-sm leading-tight">{goal.title}</h4>
-                          <p className="text-xs text-[var(--text-secondary)] mt-1">{subject?.name || 'General'}</p>
-                        </div>
-                        <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-[var(--bg-color)] border border-[var(--border-color)] text-[var(--text-secondary)] uppercase">
-                          {new Date(goal.deadline).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
-                        </span>
-                      </div>
-                      
-                      <div className="space-y-1.5">
-                        <div className="flex justify-between text-xs font-medium">
-                          <span className="text-[var(--text-secondary)]">{goal.completedHours} / {goal.targetHours}h</span>
-                          <span className="text-[var(--text-primary)]">{progress}%</span>
-                        </div>
-                        <div className="h-2 w-full bg-[var(--bg-color)] rounded-full overflow-hidden border border-[var(--border-color)]/50">
-                          <motion.div 
-                            className="h-full" 
-                            style={{ backgroundColor: subject ? subject.color : 'var(--color-primary)' }}
-                            initial={{ width: 0 }}
-                            animate={{ width: `${progress}%` }}
-                            transition={{ duration: 1, ease: "easeOut" }}
-                          />
-                        </div>
-                      </div>
+               <div>
+                 <h3 className="text-2xl font-bold text-[var(--text-primary)] leading-tight">{stats.todayStudyTime}</h3>
+                 <p className="text-xs text-[var(--text-secondary)] mt-1 truncate" title={stats.diffText}>{stats.diffText}</p>
+               </div>
+            </Card>
+
+            <Card className="p-5 flex flex-col justify-between hover:shadow-md transition-shadow">
+               <div className="flex items-center gap-3 mb-3">
+                 <div className="p-1.5 rounded-lg bg-[var(--color-warning)]/10 text-[var(--color-warning)]">
+                   <Flame className="h-4 w-4" />
+                 </div>
+                 <p className="text-xs font-semibold text-[var(--text-secondary)] uppercase tracking-wider">Streak</p>
+               </div>
+               <div>
+                 <h3 className="text-2xl font-bold text-[var(--text-primary)] leading-tight">{stats.studyStreak} <span className="text-sm font-medium text-[var(--text-secondary)]">days</span></h3>
+                 <p className="text-xs text-[var(--text-secondary)] mt-1">Keep it going!</p>
+               </div>
+            </Card>
+
+            <Card className="p-5 flex flex-col justify-between hover:shadow-md transition-shadow">
+               <div className="flex items-center gap-3 mb-3">
+                 <div className="p-1.5 rounded-lg bg-[var(--color-success)]/10 text-[var(--color-success)]">
+                   <Target className="h-4 w-4" />
+                 </div>
+                 <p className="text-xs font-semibold text-[var(--text-secondary)] uppercase tracking-wider">Goals</p>
+               </div>
+               <div>
+                 <h3 className="text-2xl font-bold text-[var(--text-primary)] leading-tight">{stats.goalsProgress}%</h3>
+                 <p className="text-xs text-[var(--text-secondary)] mt-1 truncate" title={stats.goalsText}>{stats.goalsText}</p>
+               </div>
+            </Card>
+
+            <Card className="p-5 flex flex-col justify-between hover:shadow-md transition-shadow">
+               <div className="flex items-center gap-3 mb-3">
+                 <div className="p-1.5 rounded-lg bg-[var(--color-accent)]/10 text-[var(--color-accent)]">
+                   <Zap className="h-4 w-4" />
+                 </div>
+                 <p className="text-xs font-semibold text-[var(--text-secondary)] uppercase tracking-wider">Focus</p>
+               </div>
+               <div>
+                 <h3 className="text-2xl font-bold text-[var(--text-primary)] leading-tight">{stats.focusScore}<span className="text-sm font-medium text-[var(--text-secondary)]">/100</span></h3>
+                 <p className="text-xs text-[var(--text-secondary)] mt-1 truncate">Good effort today</p>
+               </div>
+            </Card>
+          </motion.div>
+
+          {/* Learning Insight Banner */}
+          <AnimatePresence>
+            {showInsight && stats.bestTimeInsight.value !== 'Not enough data' && (
+              <motion.div 
+                variants={itemVariants} 
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: 'auto' }}
+                exit={{ opacity: 0, height: 0, overflow: 'hidden' }}
+              >
+                <div className="flex items-center justify-between p-4 rounded-[var(--radius-card)] bg-gradient-to-r from-[var(--color-primary)]/10 to-[var(--color-primary)]/5 border border-[var(--color-primary)]/20 shadow-sm">
+                  <div className="flex items-center gap-4">
+                    <div className="h-10 w-10 rounded-full bg-[var(--color-primary)]/20 flex items-center justify-center shrink-0">
+                      <Lightbulb className="h-5 w-5 text-[var(--color-primary)]" />
                     </div>
-                  )
-                })}
-              </div>
+                    <div>
+                      <h4 className="text-sm font-bold text-[var(--text-primary)]">Learning Insight</h4>
+                      <p className="text-sm text-[var(--text-secondary)] mt-0.5">{stats.bestTimeInsight.value}. {stats.bestTimeInsight.description}</p>
+                    </div>
+                  </div>
+                  <button onClick={() => setShowInsight(false)} className="h-8 w-8 rounded-full hover:bg-[var(--bg-main)] flex items-center justify-center text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors shrink-0">
+                    <X className="h-4 w-4" />
+                  </button>
+                </div>
+              </motion.div>
             )}
-          </CardContent>
-        </Card>
-      </motion.div>
+          </AnimatePresence>
+
+          {/* Tabbed Widget: Activity & Goals */}
+          <motion.div variants={itemVariants} className="flex-1">
+            <Card className="h-full flex flex-col shadow-soft border-[var(--border-color)]">
+              <div className="flex border-b border-[var(--border-color)] px-2 pt-2 bg-[var(--bg-main)]/50 rounded-t-[calc(var(--radius-card)-1px)]" role="tablist">
+                <button 
+                  className={`flex-1 py-3 px-4 text-sm font-bold transition-all relative ${activeTab === 'activity' ? 'text-[var(--color-primary)]' : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'}`}
+                  onClick={() => setActiveTab('activity')}
+                  role="tab"
+                  aria-selected={activeTab === 'activity'}
+                >
+                  Activity
+                  {activeTab === 'activity' && (
+                    <motion.div layoutId="tabIndicator" className="absolute bottom-0 left-0 right-0 h-0.5 bg-[var(--color-primary)]" />
+                  )}
+                </button>
+                <button 
+                  className={`flex-1 py-3 px-4 text-sm font-bold transition-all relative ${activeTab === 'goals' ? 'text-[var(--color-primary)]' : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'}`}
+                  onClick={() => setActiveTab('goals')}
+                  role="tab"
+                  aria-selected={activeTab === 'goals'}
+                >
+                  Goals
+                  {activeTab === 'goals' && (
+                    <motion.div layoutId="tabIndicator" className="absolute bottom-0 left-0 right-0 h-0.5 bg-[var(--color-primary)]" />
+                  )}
+                </button>
+              </div>
+              
+              <CardContent className="p-0 flex-1 relative min-h-[350px]">
+                {activeTab === 'activity' ? (
+                  <motion.div 
+                    key="activity"
+                    initial={{ opacity: 0, x: -10 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ duration: 0.2 }}
+                    className="flex flex-col h-full absolute inset-0"
+                  >
+                    {stats.recentSessions.length === 0 ? (
+                      <div className="flex-1 flex flex-col items-center justify-center p-8 text-center">
+                        <div className="h-12 w-12 rounded-full bg-[var(--border-color)]/30 flex items-center justify-center mb-3">
+                          <BookOpen className="h-6 w-6 text-[var(--text-secondary)]" />
+                        </div>
+                        <p className="text-[var(--text-primary)] font-medium mb-1">No study sessions yet</p>
+                        <Link to="/dashboard/sessions" className="text-sm text-[var(--color-primary)] hover:underline">Start your first study session &rarr;</Link>
+                      </div>
+                    ) : (
+                      <div className="flex flex-col h-full">
+                        <div className="flex-1 overflow-y-auto p-5 space-y-4">
+                          {stats.recentSessions.map(session => {
+                            const sub = subjects.find(s => s.id === session.subjectId);
+                            return (
+                              <div key={session.id} className="flex items-center justify-between p-4 rounded-[var(--radius-base)] bg-[var(--bg-main)] border border-[var(--border-color)] hover:border-[var(--color-primary)]/50 transition-colors">
+                                <div className="flex items-center gap-4">
+                                  <div className="h-10 w-10 rounded-full flex items-center justify-center shrink-0" style={{ backgroundColor: `${sub?.color || '#3B82F6'}15`, color: sub?.color || '#3B82F6' }}>
+                                    <BookOpen className="h-5 w-5" />
+                                  </div>
+                                  <div>
+                                    <p className="text-sm font-bold text-[var(--text-primary)]">{sub?.name || 'Unknown'}</p>
+                                    <p className="text-xs text-[var(--text-secondary)] mt-0.5">
+                                      {new Date(session.startTime).toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}
+                                    </p>
+                                  </div>
+                                </div>
+                                <div className="text-sm font-bold bg-[var(--bg-color)] px-3 py-1 rounded-full border border-[var(--border-color)] text-[var(--text-primary)] shrink-0">
+                                  {session.durationMinutes}m
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                        <div className="p-4 border-t border-[var(--border-color)] mt-auto bg-[var(--bg-main)]/50 rounded-b-[calc(var(--radius-card)-1px)]">
+                          <Link to="/dashboard/sessions">
+                            <Button variant="ghost" className="w-full text-[var(--color-primary)] hover:text-[var(--color-primary)] hover:bg-[var(--color-primary)]/5 font-medium gap-2">
+                              View all activity <ChevronRight className="h-4 w-4" />
+                            </Button>
+                          </Link>
+                        </div>
+                      </div>
+                    )}
+                  </motion.div>
+                ) : (
+                  <motion.div 
+                    key="goals"
+                    initial={{ opacity: 0, x: 10 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ duration: 0.2 }}
+                    className="flex flex-col h-full absolute inset-0"
+                  >
+                    {stats.activeGoals.length === 0 ? (
+                      <div className="flex-1 flex flex-col items-center justify-center p-8 text-center">
+                        <div className="h-12 w-12 rounded-full bg-[var(--border-color)]/30 flex items-center justify-center mb-3">
+                          <Target className="h-6 w-6 text-[var(--text-secondary)]" />
+                        </div>
+                        <p className="text-[var(--text-primary)] font-medium mb-1">No active goals</p>
+                        <Link to="/dashboard/goals" className="text-sm text-[var(--color-primary)] hover:underline">Create your first goal &rarr;</Link>
+                      </div>
+                    ) : (
+                      <div className="flex flex-col h-full">
+                        <div className="flex-1 overflow-y-auto p-5 space-y-4">
+                          {stats.activeGoals.map(goal => {
+                            const progress = goal.targetHours > 0 ? Math.min(100, Math.round((goal.completedHours / goal.targetHours) * 100)) : 0;
+                            const sub = subjects.find(s => s.id === goal.subjectId);
+                            return (
+                              <div key={goal.id} className="p-4 rounded-[var(--radius-base)] bg-[var(--bg-main)] border border-[var(--border-color)] hover:border-[var(--color-primary)]/50 transition-colors space-y-3">
+                                <div className="flex justify-between items-start gap-4">
+                                  <div>
+                                    <p className="text-sm font-bold text-[var(--text-primary)] line-clamp-1">{goal.title}</p>
+                                    <p className="text-xs text-[var(--text-secondary)] mt-0.5">{sub?.name || 'General Goal'}</p>
+                                  </div>
+                                  <div className="text-sm font-bold text-[var(--color-primary)] shrink-0">{progress}%</div>
+                                </div>
+                                <div className="h-2 w-full bg-[var(--border-color)]/50 rounded-full overflow-hidden">
+                                  <div className="h-full bg-[var(--color-success)] rounded-full transition-all duration-1000 ease-out" style={{ width: `${progress}%` }}></div>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                        <div className="p-4 border-t border-[var(--border-color)] mt-auto bg-[var(--bg-main)]/50 rounded-b-[calc(var(--radius-card)-1px)]">
+                          <Link to="/dashboard/goals">
+                            <Button variant="ghost" className="w-full text-[var(--color-primary)] hover:text-[var(--color-primary)] hover:bg-[var(--color-primary)]/5 font-medium gap-2">
+                              View all goals <ChevronRight className="h-4 w-4" />
+                            </Button>
+                          </Link>
+                        </div>
+                      </div>
+                    )}
+                  </motion.div>
+                )}
+              </CardContent>
+            </Card>
+          </motion.div>
+        </div>
+
+        {/* SMART SIDEBAR (~35%) */}
+        <div className="lg:col-span-4 flex flex-col gap-8">
+          
+          {/* Mini Study Timer */}
+          <motion.div variants={itemVariants}>
+            <Card className="border-[var(--color-primary)]/20 shadow-md relative overflow-hidden group">
+              <div className="absolute top-0 right-0 w-32 h-32 bg-[var(--color-primary)]/5 rounded-bl-full -z-10 group-hover:scale-110 transition-transform"></div>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-bold uppercase tracking-wider flex items-center gap-2 text-[var(--text-secondary)]">
+                  <Timer className="h-4 w-4" /> Focus Timer
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="flex flex-col items-center pt-2 pb-6">
+                <div className="text-6xl font-extrabold tracking-tighter tabular-nums mb-6 text-[var(--text-primary)]">
+                  {formatTime(timeLeft)}
+                </div>
+                <div className="flex w-full gap-3 mb-6">
+                  <Button 
+                    onClick={toggleMiniTimer} 
+                    className={`flex-1 h-12 text-sm font-bold shadow-sm transition-all ${isTimerActive ? 'bg-[var(--color-warning)] hover:bg-[var(--color-warning)]/90 text-white' : 'bg-[var(--color-primary)] hover:bg-[var(--color-primary)]/90 text-white'}`}
+                  >
+                    {isTimerActive ? <Pause className="h-4 w-4 mr-2" /> : <Play className="h-4 w-4 mr-2" />}
+                    {isTimerActive ? 'Pause' : 'Start Focus'}
+                  </Button>
+                  <Button 
+                    onClick={resetMiniTimer} 
+                    variant="outline" 
+                    className="h-12 w-12 shrink-0 border-[var(--border-color)] hover:bg-[var(--color-error)]/10 hover:text-[var(--color-error)] hover:border-[var(--color-error)]/30 transition-colors"
+                    title="Reset Timer"
+                  >
+                    <Square className="h-4 w-4" />
+                  </Button>
+                </div>
+                <Link to="/dashboard/pomodoro" className="text-xs font-semibold text-[var(--text-secondary)] hover:text-[var(--color-primary)] flex items-center gap-1 transition-colors">
+                  Open full timer <ChevronRight className="h-3 w-3" />
+                </Link>
+              </CardContent>
+            </Card>
+          </motion.div>
+
+          {/* Upcoming Deadlines */}
+          <motion.div variants={itemVariants} className="flex-1 flex flex-col">
+            <Card className="flex-1 flex flex-col shadow-soft border-[var(--border-color)]">
+              <CardHeader className="pb-4 border-b border-[var(--border-color)]">
+                <CardTitle className="text-sm font-bold uppercase tracking-wider flex items-center gap-2 text-[var(--text-secondary)]">
+                  <CalendarIcon className="h-4 w-4" /> Upcoming
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="p-0 flex-1 flex flex-col min-h-[250px]">
+                {stats.upcomingEvents.length === 0 ? (
+                  <div className="flex-1 flex flex-col items-center justify-center p-8 text-center">
+                    <div className="text-4xl mb-3">🎉</div>
+                    <p className="text-sm font-bold text-[var(--text-primary)]">No upcoming deadlines</p>
+                    <p className="text-xs text-[var(--text-secondary)] mt-1">You're all caught up!</p>
+                  </div>
+                ) : (
+                  <div className="flex flex-col h-full">
+                    <div className="flex-1 p-5 space-y-4">
+                      {stats.upcomingEvents.map(event => {
+                        const eventDate = new Date(event.date);
+                        const isUrgent = (eventDate.getTime() - new Date().getTime()) / (1000 * 3600 * 24) <= 3;
+                        
+                        return (
+                          <div key={event.id} className="flex items-start gap-4">
+                            <div className={`h-10 w-10 rounded-full flex items-center justify-center shrink-0 ${isUrgent ? 'bg-[var(--color-error)]/10 text-[var(--color-error)]' : 'bg-[var(--bg-main)] text-[var(--color-primary)]'}`}>
+                              <CalendarIcon className="h-4 w-4" />
+                            </div>
+                            <div className="flex-1 min-w-0 pt-0.5">
+                              <p className="text-sm font-bold text-[var(--text-primary)] truncate">{event.title}</p>
+                              <p className={`text-xs font-medium mt-0.5 ${isUrgent ? 'text-[var(--color-error)]' : 'text-[var(--text-secondary)]'}`}>
+                                {eventDate.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
+                                {isUrgent && ' (Soon)'}
+                              </p>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                    <div className="p-4 border-t border-[var(--border-color)] mt-auto bg-[var(--bg-main)]/50 rounded-b-[calc(var(--radius-card)-1px)]">
+                      <Link to="/dashboard/calendar" className="text-xs font-semibold text-[var(--color-primary)] hover:underline flex items-center justify-center gap-1">
+                        View calendar <ChevronRight className="h-3 w-3" />
+                      </Link>
+                    </div>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </motion.div>
+
+        </div>
+      </div>
     </motion.div>
   );
 }

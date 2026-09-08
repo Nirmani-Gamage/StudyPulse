@@ -8,7 +8,7 @@ import { Target, Plus, Trash2, CheckCircle2, Edit2 } from 'lucide-react';
 import type { Goal } from '../../types';
 
 export default function Goals() {
-  const { goals, subjects, addGoal, updateGoal, deleteGoal, updateGoalProgress } = useStudyData();
+  const { goals, subjects, addGoal, updateGoal, deleteGoal } = useStudyData();
   const [isModalOpen, setIsModalOpen] = useState(false);
   
   // Form state
