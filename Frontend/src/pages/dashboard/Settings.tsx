@@ -14,7 +14,7 @@ import { useStudyData } from '../../context/StudyContext';
 import { useAuth } from '../../context/AuthContext';
 
 export default function Settings() {
-  const { logout } = useAuth();
+  const { user, logout } = useAuth();
   const { theme, setTheme } = useTheme();
   const { resetData } = useStudyData();
   const { 
@@ -23,7 +23,13 @@ export default function Settings() {
   } = useProfile();
 
   // Local state for profile form
-  const [formData, setFormData] = useState(profile);
+  const [formData, setFormData] = useState(() => ({
+    name: profile.name || user?.name || 'Student',
+    email: profile.email || user?.email || '',
+    university: profile.university || '',
+    degree: profile.degree || '',
+    bio: profile.bio || '',
+  }));
   const [isSaving, setIsSaving] = useState(false);
   const [saveMessage, setSaveMessage] = useState('');
   const [error, setError] = useState('');
@@ -32,8 +38,14 @@ export default function Settings() {
   const [showResetModal, setShowResetModal] = useState(false);
 
   useEffect(() => {
-    setFormData(profile);
-  }, [profile]);
+    setFormData({
+      name: profile.name || user?.name || 'Student',
+      email: profile.email || user?.email || '',
+      university: profile.university || '',
+      degree: profile.degree || '',
+      bio: profile.bio || '',
+    });
+  }, [profile, user]);
 
   const handleProfileChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -92,11 +104,12 @@ export default function Settings() {
                 
                 <div className="flex items-center gap-6 mb-6">
                   <div className="h-20 w-20 rounded-full bg-[var(--color-primary)] text-white flex items-center justify-center text-2xl font-bold">
-                    {getInitials()}
+                    {getInitials(formData.name)}
                   </div>
                   <div>
-                    <h3 className="text-lg font-medium text-[var(--text-primary)]">{profile.name || 'Student'}</h3>
-                    <p className="text-[var(--text-secondary)]">{profile.degree || 'Add your degree'}</p>
+                    <h3 className="text-lg font-bold text-[var(--text-primary)]">{formData.name || 'Student'}</h3>
+                    <p className="text-sm font-semibold text-[var(--color-primary)]">{formData.email || 'No email set'}</p>
+                    <p className="text-xs text-[var(--text-secondary)] mt-0.5">{formData.degree || 'Add your degree'}</p>
                   </div>
                 </div>
 
@@ -112,13 +125,14 @@ export default function Settings() {
                     />
                   </div>
                   <div className="space-y-2">
-                    <label className="text-sm font-medium text-[var(--text-primary)]">Email</label>
+                    <label className="text-sm font-medium text-[var(--text-primary)]">Email Address</label>
                     <Input 
                       name="email" 
                       type="email"
                       value={formData.email} 
                       onChange={handleProfileChange} 
                       icon={<Mail className="h-4 w-4" />}
+                      placeholder="your.email@example.com"
                     />
                   </div>
                   <div className="space-y-2">

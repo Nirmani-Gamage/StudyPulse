@@ -57,10 +57,8 @@ export function TopNav({ onMenuClick }: TopNavProps) {
     setShowNotifications(false);
   };
 
-  // Determine actual initials using AuthContext user name first, falling back to profile
-  const actualInitials = user?.name 
-    ? user.name.substring(0, 2).toUpperCase() 
-    : getInitials();
+  // Determine actual initials using first letter of first name + first letter of second name
+  const actualInitials = getInitials(user?.name);
 
   return (
     <header className="sticky top-0 z-30 flex h-16 shrink-0 items-center justify-between border-b border-[var(--border-color)] bg-[var(--card-bg)] px-4 sm:px-6">

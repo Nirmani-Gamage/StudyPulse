@@ -196,49 +196,68 @@ export default function CalendarView() {
 
       <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} title={editingEvent ? "Edit Event" : `Add Event on ${selectedDate}`}>
         <form onSubmit={handleSubmit} className="space-y-4">
-          {error && (
-            <div className="p-3 bg-red-100 text-red-700 rounded text-sm mb-4">
-              {error}
-            </div>
-          )}
-          <div>
-            <label className="block text-sm font-medium text-[var(--text-primary)] mb-1">Event Title</label>
-            <Input 
-              required
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              placeholder="e.g. Final Math Exam"
-            />
-          </div>
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-[var(--text-primary)] mb-1">Event Type</label>
-              <select 
-                className="flex h-11 w-full rounded-[var(--radius-input)] border border-[var(--border-color)] bg-[var(--bg-color)] px-3 py-2 text-sm text-[var(--text-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]"
-                value={type}
-                onChange={(e) => setType(e.target.value as any)}
-              >
-                <option value="study">Study Session</option>
-                <option value="assignment">Assignment</option>
-                <option value="exam">Exam</option>
-                <option value="goal">Goal Deadline</option>
-                <option value="reminder">Reminder</option>
-              </select>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-[var(--text-primary)] mb-1">Subject (Optional)</label>
-              <select 
-                className="flex h-11 w-full rounded-[var(--radius-input)] border border-[var(--border-color)] bg-[var(--bg-color)] px-3 py-2 text-sm text-[var(--text-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]"
-                value={subjectId}
-                onChange={(e) => setSubjectId(e.target.value)}
-              >
-                <option value="">-- None --</option>
-                {subjects.map(s => (
-                  <option key={s.id} value={s.id}>{s.name}</option>
-                ))}
-              </select>
-            </div>
-          </div>
+          {(() => {
+             const today = new Date();
+             const offset = today.getTimezoneOffset() * 60000;
+             const todayISODate = (new Date(today.getTime() - offset)).toISOString().split('T')[0];
+             const isPastDate = selectedDate < todayISODate;
+             const canAddOrEdit = editingEvent || !isPastDate;
+             
+             return (
+               <>
+                 {isPastDate && !editingEvent && (
+                   <div className="p-3 bg-[var(--color-warning)]/10 text-[var(--color-warning)] rounded-[var(--radius-base)] text-sm font-medium border border-[var(--color-warning)]/20 mb-4">
+                     You cannot add new events to past dates.
+                   </div>
+                 )}
+                 {error && (
+                   <div className="p-3 bg-red-100 text-red-700 rounded text-sm mb-4">
+                     {error}
+                   </div>
+                 )}
+                 
+                 {canAddOrEdit && (
+                   <>
+                     <div>
+                       <label className="block text-sm font-medium text-[var(--text-primary)] mb-1">Event Title</label>
+                       <Input 
+                         required
+                         value={title}
+                         onChange={(e) => setTitle(e.target.value)}
+                         placeholder="e.g. Final Math Exam"
+                       />
+                     </div>
+                     <div className="grid grid-cols-2 gap-4">
+                       <div>
+                         <label className="block text-sm font-medium text-[var(--text-primary)] mb-1">Event Type</label>
+                         <select 
+                           className="flex h-11 w-full rounded-[var(--radius-input)] border border-[var(--border-color)] bg-[var(--bg-color)] px-3 py-2 text-sm text-[var(--text-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]"
+                           value={type}
+                           onChange={(e) => setType(e.target.value as any)}
+                         >
+                           <option value="study">Study Session</option>
+                           <option value="assignment">Assignment</option>
+                           <option value="exam">Exam</option>
+                           <option value="goal">Goal Deadline</option>
+                           <option value="reminder">Reminder</option>
+                         </select>
+                       </div>
+                       <div>
+                         <label className="block text-sm font-medium text-[var(--text-primary)] mb-1">Subject (Optional)</label>
+                         <select 
+                           className="flex h-11 w-full rounded-[var(--radius-input)] border border-[var(--border-color)] bg-[var(--bg-color)] px-3 py-2 text-sm text-[var(--text-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]"
+                           value={subjectId}
+                           onChange={(e) => setSubjectId(e.target.value)}
+                         >
+                           <option value="">-- None --</option>
+                           {subjects.map(s => (
+                             <option key={s.id} value={s.id}>{s.name}</option>
+                           ))}
+                         </select>
+                       </div>
+                     </div>
+                   </>
+                 )}
           
           {events.filter(e => e.date === selectedDate).length > 0 && (
              <div className="pt-4 mt-4 border-t border-[var(--border-color)]">
@@ -263,10 +282,15 @@ export default function CalendarView() {
 
           <div className="flex justify-end gap-3 mt-8">
             <Button type="button" variant="ghost" onClick={() => setIsModalOpen(false)}>Cancel</Button>
-            <Button type="submit" disabled={isSaving}>
-              {isSaving ? 'Saving...' : (editingEvent ? 'Update Event' : 'Save Event')}
-            </Button>
+            {canAddOrEdit && (
+              <Button type="submit" disabled={isSaving}>
+                {isSaving ? 'Saving...' : (editingEvent ? 'Update Event' : 'Save Event')}
+              </Button>
+            )}
           </div>
+               </>
+             );
+          })()}
         </form>
       </Modal>
     </div>

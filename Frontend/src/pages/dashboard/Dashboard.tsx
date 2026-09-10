@@ -1,6 +1,6 @@
 import { useMemo, useState, useEffect } from 'react';
 import { 
-  Clock, Flame, Target, Zap, Calendar as CalendarIcon, 
+  Clock, Flame, Target, Calendar as CalendarIcon, 
   Timer, BookOpen, Play, PlusCircle, Lightbulb, X, Square, ChevronRight, Pause
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/Card';
@@ -185,6 +185,7 @@ export default function Dashboard() {
     const totalGoalsCount = goals.length;
     
     const focusScore = Math.min(100, Math.floor(todayMinutes / 6) * 5);
+    const focusHours = (todayMinutes / 60).toFixed(1);
 
     const recentSessions = [...sessions].sort((a,b) => new Date(b.startTime).getTime() - new Date(a.startTime).getTime()).slice(0, 4);
 
@@ -208,6 +209,7 @@ export default function Dashboard() {
       studyStreak: streak,
       goalsProgress,
       focusScore,
+      focusHours,
       recentSessions,
       upcomingEvents,
       activeGoals,
@@ -276,7 +278,7 @@ export default function Dashboard() {
         <div className="lg:col-span-8 flex flex-col gap-8">
           
           {/* KPI Cards */}
-          <motion.div variants={itemVariants} className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <motion.div variants={itemVariants} className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <Card className="p-5 flex flex-col justify-between hover:shadow-md transition-shadow">
                <div className="flex items-center gap-3 mb-3">
                  <div className="p-1.5 rounded-lg bg-[var(--color-primary)]/10 text-[var(--color-primary)]">
@@ -313,19 +315,6 @@ export default function Dashboard() {
                <div>
                  <h3 className="text-2xl font-bold text-[var(--text-primary)] leading-tight">{stats.goalsProgress}%</h3>
                  <p className="text-xs text-[var(--text-secondary)] mt-1 truncate" title={stats.goalsText}>{stats.goalsText}</p>
-               </div>
-            </Card>
-
-            <Card className="p-5 flex flex-col justify-between hover:shadow-md transition-shadow">
-               <div className="flex items-center gap-3 mb-3">
-                 <div className="p-1.5 rounded-lg bg-[var(--color-accent)]/10 text-[var(--color-accent)]">
-                   <Zap className="h-4 w-4" />
-                 </div>
-                 <p className="text-xs font-semibold text-[var(--text-secondary)] uppercase tracking-wider">Focus</p>
-               </div>
-               <div>
-                 <h3 className="text-2xl font-bold text-[var(--text-primary)] leading-tight">{stats.focusScore}<span className="text-sm font-medium text-[var(--text-secondary)]">/100</span></h3>
-                 <p className="text-xs text-[var(--text-secondary)] mt-1 truncate">Good effort today</p>
                </div>
             </Card>
           </motion.div>

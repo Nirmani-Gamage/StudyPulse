@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { api } from '../lib/api';
+import { useAuth } from '../context/AuthContext';
 
 export interface UserProfile {
   name: string;
@@ -45,9 +46,35 @@ const DEFAULT_SETTINGS: ProfileSettings = {
   }
 };
 
-export function useProfile(isAuthenticated: boolean = false) {
-  const [settings, setSettings] = useState<ProfileSettings>(DEFAULT_SETTINGS);
+export function useProfile(overrideAuth?: boolean) {
+  const { user, isAuthenticated: authIsAuthenticated } = useAuth();
+  const isAuthenticated = overrideAuth ?? authIsAuthenticated;
+
+  const [settings, setSettings] = useState<ProfileSettings>(() => {
+    return {
+      ...DEFAULT_SETTINGS,
+      profile: {
+        ...DEFAULT_SETTINGS.profile,
+        name: user?.name || 'Student',
+        email: user?.email || '',
+      }
+    };
+  });
   const [isLoading, setIsLoading] = useState(false);
+
+  // Sync profile state whenever user state changes in AuthContext
+  useEffect(() => {
+    if (user) {
+      setSettings(prev => ({
+        ...prev,
+        profile: {
+          ...prev.profile,
+          name: prev.profile.name && prev.profile.name !== 'Student' ? prev.profile.name : (user.name || 'Student'),
+          email: user.email || prev.profile.email || '',
+        }
+      }));
+    }
+  }, [user]);
 
   const fetchProfile = useCallback(async () => {
     if (!isAuthenticated) return;
@@ -57,8 +84,8 @@ export function useProfile(isAuthenticated: boolean = false) {
       if (data.user) {
         setSettings({
           profile: {
-            name: data.user.name,
-            email: data.user.email,
+            name: data.user.name || user?.name || 'Student',
+            email: data.user.email || user?.email || '',
             university: data.user.university || '',
             degree: data.user.degree || '',
             bio: data.user.bio || '',
@@ -72,7 +99,7 @@ export function useProfile(isAuthenticated: boolean = false) {
     } finally {
       setIsLoading(false);
     }
-  }, [isAuthenticated]);
+  }, [isAuthenticated, user]);
 
   useEffect(() => {
     fetchProfile();
@@ -135,9 +162,18 @@ export function useProfile(isAuthenticated: boolean = false) {
     setSettings(DEFAULT_SETTINGS);
   };
 
-  const getInitials = () => {
-    const name = settings.profile.name || 'Student';
-    return name.substring(0, 2).toUpperCase();
+  const getInitials = (customName?: string) => {
+    const nameToUse = (customName || settings.profile.name || user?.name || 'Student').trim();
+    if (!nameToUse) return 'ST';
+    
+    const words = nameToUse.split(/\s+/).filter(Boolean);
+    if (words.length >= 2) {
+      return (words[0][0] + words[1][0]).toUpperCase();
+    }
+    if (words[0].length >= 2) {
+      return words[0].substring(0, 2).toUpperCase();
+    }
+    return words[0][0].toUpperCase();
   };
 
   return {

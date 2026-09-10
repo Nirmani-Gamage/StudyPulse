@@ -6,9 +6,7 @@ import {
   Target, 
   BarChart2, 
   Calendar, 
-  Award, 
   Settings, 
-  HelpCircle,
   X,
   Timer
 } from 'lucide-react';
@@ -23,12 +21,10 @@ const navItems = [
   { name: 'Goals', icon: Target, path: '/dashboard/goals' },
   { name: 'Analytics', icon: BarChart2, path: '/dashboard/analytics' },
   { name: 'Calendar', icon: Calendar, path: '/dashboard/calendar' },
-  { name: 'Achievements', icon: Award, path: '/dashboard/achievements' },
 ];
 
 const bottomNavItems = [
   { name: 'Settings', icon: Settings, path: '/dashboard/settings' },
-  { name: 'Help', icon: HelpCircle, path: '/dashboard/help' },
 ];
 
 interface SidebarProps {
