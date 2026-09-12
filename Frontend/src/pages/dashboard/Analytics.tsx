@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useStudyData } from '../../context/StudyContext';
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
@@ -28,6 +28,9 @@ import {
   getWeeklyEstimate, getGoalRisk, getSubjectBalance, 
   getWeeklyTrend, getSuggestedActions 
 } from '../../lib/insights';
+import { analyticsApi } from '../../services/analyticsApi';
+import type { LearningEffectiveness } from '../../services/analyticsApi';
+import { LearningEffectivenessSection } from './LearningEffectivenessSection';
 
 ChartJS.register(
   CategoryScale,
@@ -49,13 +52,31 @@ export default function Analytics() {
   const navigate = useNavigate();
   const { sessions, subjects, goals, events } = useStudyData();
   
-  const [activeTab, setActiveTab] = useState<'overview' | 'insights' | 'activity'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'effectiveness' | 'insights' | 'activity'>('overview');
   const [timeRange, setTimeRange] = useState<TimeRange>('7d');
   const [chartType, setChartType] = useState<'bar' | 'line'>('bar');
   const [insightCategory, setInsightCategory] = useState<InsightCategory>('all');
   const [activitySearch, setActivitySearch] = useState('');
   const [activitySubjectFilter, setActivitySubjectFilter] = useState<string>('all');
   const [activityLimit, setActivityLimit] = useState(6);
+
+  const [effectivenessData, setEffectivenessData] = useState<LearningEffectiveness | null>(null);
+  const [effectivenessLoading, setEffectivenessLoading] = useState(false);
+
+  useEffect(() => {
+    async function fetchEffectiveness() {
+      try {
+        setEffectivenessLoading(true);
+        const data = await analyticsApi.getLearningEffectiveness(timeRange);
+        setEffectivenessData(data);
+      } catch (error) {
+        console.error('Failed to fetch effectiveness data:', error);
+      } finally {
+        setEffectivenessLoading(false);
+      }
+    }
+    fetchEffectiveness();
+  }, [timeRange]);
 
   const filteredSessions = useMemo(() => {
     if (sessions.length === 0) return [];
@@ -306,6 +327,7 @@ export default function Analytics() {
             <div className="flex space-x-1 sm:space-x-2">
               {[
                 { id: 'overview', label: 'Overview', icon: BarChart3 },
+                { id: 'effectiveness', label: 'Learning Engine', icon: Target },
                 { id: 'insights', label: 'Learning Insights', icon: Lightbulb },
                 { id: 'activity', label: 'Activity Log', icon: Activity },
               ].map((tab) => {
@@ -543,6 +565,17 @@ export default function Analytics() {
                  </Card>
                </div>
              </motion.div>
+          )}
+
+          {activeTab === 'effectiveness' && (
+            <motion.div 
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.25 }}
+              className="space-y-6"
+            >
+              <LearningEffectivenessSection data={effectivenessData} loading={effectivenessLoading} />
+            </motion.div>
           )}
 
           {activeTab === 'insights' && (
