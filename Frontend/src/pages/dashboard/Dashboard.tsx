@@ -12,6 +12,7 @@ import { getBestStudyTime } from '../../lib/insights';
 import { useProfile } from '../../hooks/useProfile';
 import { useAuth } from '../../context/AuthContext';
 import { DashboardRecommendations } from '../../components/recommendations/DashboardRecommendations';
+import { AIDailyPlanner } from '../../components/ai-planner/AIDailyPlanner';
 
 export default function Dashboard() {
   const { user } = useAuth();
@@ -272,6 +273,11 @@ export default function Dashboard() {
             <span className="hidden sm:inline">Calendar</span>
           </Button>
         </div>
+      </motion.div>
+
+      {/* AI DAILY PLANNER */}
+      <motion.div variants={itemVariants}>
+        <AIDailyPlanner />
       </motion.div>
 
       {/* SMART RECOMMENDATIONS */}
