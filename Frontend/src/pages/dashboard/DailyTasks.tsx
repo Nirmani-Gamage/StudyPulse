@@ -4,7 +4,6 @@ import type { DailyTask } from '../../types';
 import { DailyTaskProgress } from '../../components/daily-tasks/DailyTaskProgress';
 import { DailyTaskCard } from '../../components/daily-tasks/DailyTaskCard';
 import { DailyTaskForm } from '../../components/daily-tasks/DailyTaskForm';
-import { DailyTaskEmptyState } from '../../components/daily-tasks/DailyTaskEmptyState';
 import { Button } from '../../components/ui/Button';
 import { Plus } from 'lucide-react';
 
@@ -94,9 +93,11 @@ export default function DailyTasks() {
           </p>
         </div>
 
-        <Button onClick={handleOpenAddForm} className="flex items-center gap-2 font-bold shadow-md">
-          <Plus className="h-4 w-4" /> Add Task
-        </Button>
+        {selectedDate >= getTodayStr() && (
+          <Button onClick={handleOpenAddForm} className="flex items-center gap-2 font-bold shadow-md">
+            <Plus className="h-4 w-4" /> Add Task
+          </Button>
+        )}
       </div>
 
       {/* Progress & Date Bar Component */}
@@ -108,94 +109,107 @@ export default function DailyTasks() {
       />
 
       {/* Tasks List or Empty State */}
-      {dateTasks.length === 0 ? (
-        <DailyTaskEmptyState onAddTask={handleOpenAddForm} />
-      ) : (
-        <div className="space-y-8 mt-6">
-          {/* High Priority Group */}
-          {priorityGroups.high.length > 0 && (
-            <div className="space-y-3">
-              <div className="flex items-center gap-2 pb-1 border-b border-[var(--border-color)]">
-                <span className="h-2 w-2 rounded-full bg-red-500" />
-                <h3 className="text-xs font-extrabold uppercase tracking-wider text-[var(--text-secondary)]">
-                  High Priority ({priorityGroups.high.length})
-                </h3>
-              </div>
-              <div className="space-y-2.5">
-                {priorityGroups.high.map((task) => (
-                  <DailyTaskCard
-                    key={task.id}
-                    task={task}
-                    subject={subjects.find((s) => s.id === task.subjectId)}
-                    onToggle={toggleDailyTask}
-                    onEdit={handleOpenEditForm}
-                    onDelete={deleteDailyTask}
-                  />
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Medium Priority Group */}
-          {priorityGroups.medium.length > 0 && (
-            <div className="space-y-3">
-              <div className="flex items-center gap-2 pb-1 border-b border-[var(--border-color)]">
-                <span className="h-2 w-2 rounded-full bg-amber-500" />
-                <h3 className="text-xs font-extrabold uppercase tracking-wider text-[var(--text-secondary)]">
-                  Medium Priority ({priorityGroups.medium.length})
-                </h3>
-              </div>
-              <div className="space-y-2.5">
-                {priorityGroups.medium.map((task) => (
-                  <DailyTaskCard
-                    key={task.id}
-                    task={task}
-                    subject={subjects.find((s) => s.id === task.subjectId)}
-                    onToggle={toggleDailyTask}
-                    onEdit={handleOpenEditForm}
-                    onDelete={deleteDailyTask}
-                  />
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Low Priority Group */}
-          {priorityGroups.low.length > 0 && (
-            <div className="space-y-3">
-              <div className="flex items-center gap-2 pb-1 border-b border-[var(--border-color)]">
-                <span className="h-2 w-2 rounded-full bg-emerald-500" />
-                <h3 className="text-xs font-extrabold uppercase tracking-wider text-[var(--text-secondary)]">
-                  Low Priority ({priorityGroups.low.length})
-                </h3>
-              </div>
-              <div className="space-y-2.5">
-                {priorityGroups.low.map((task) => (
-                  <DailyTaskCard
-                    key={task.id}
-                    task={task}
-                    subject={subjects.find((s) => s.id === task.subjectId)}
-                    onToggle={toggleDailyTask}
-                    onEdit={handleOpenEditForm}
-                    onDelete={deleteDailyTask}
-                  />
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Bottom Add Task Action */}
-          <div className="pt-4 flex justify-center">
-            <Button
-              variant="outline"
-              onClick={handleOpenAddForm}
-              className="flex items-center gap-2 font-bold px-6"
-            >
-              <Plus className="h-4 w-4" /> Add Task
-            </Button>
+      <div className="space-y-8 mt-6">
+        {dateTasks.length === 0 ? (
+          <div className="p-12 text-center bg-[var(--card-bg)] border border-dashed border-[var(--border-color)] rounded-[var(--radius-card)]">
+            <p className="text-[var(--text-primary)] font-medium text-lg mb-2">No tasks scheduled for this day</p>
+            {selectedDate >= getTodayStr() ? (
+              <Button variant="ghost" onClick={handleOpenAddForm} className="text-[var(--color-primary)] font-bold hover:underline p-0 h-auto hover:bg-transparent">
+                Add a new task to get started
+              </Button>
+            ) : (
+              <p className="text-[var(--text-secondary)] text-sm">Past days cannot be modified.</p>
+            )}
           </div>
-        </div>
-      )}
+        ) : (
+          <>
+            {/* High Priority Group */}
+            {priorityGroups.high.length > 0 && (
+              <div className="space-y-3">
+                <div className="flex items-center gap-2 pb-1 border-b border-[var(--border-color)]">
+                  <span className="h-2 w-2 rounded-full bg-red-500" />
+                  <h3 className="text-xs font-extrabold uppercase tracking-wider text-[var(--text-secondary)]">
+                    High Priority ({priorityGroups.high.length})
+                  </h3>
+                </div>
+                <div className="space-y-2.5">
+                  {priorityGroups.high.map((task) => (
+                    <DailyTaskCard
+                      key={task.id}
+                      task={task}
+                      subject={subjects.find((s) => s.id === task.subjectId)}
+                      onToggle={toggleDailyTask}
+                      onEdit={handleOpenEditForm}
+                      onDelete={deleteDailyTask}
+                    />
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Medium Priority Group */}
+            {priorityGroups.medium.length > 0 && (
+              <div className="space-y-3">
+                <div className="flex items-center gap-2 pb-1 border-b border-[var(--border-color)]">
+                  <span className="h-2 w-2 rounded-full bg-amber-500" />
+                  <h3 className="text-xs font-extrabold uppercase tracking-wider text-[var(--text-secondary)]">
+                    Medium Priority ({priorityGroups.medium.length})
+                  </h3>
+                </div>
+                <div className="space-y-2.5">
+                  {priorityGroups.medium.map((task) => (
+                    <DailyTaskCard
+                      key={task.id}
+                      task={task}
+                      subject={subjects.find((s) => s.id === task.subjectId)}
+                      onToggle={toggleDailyTask}
+                      onEdit={handleOpenEditForm}
+                      onDelete={deleteDailyTask}
+                    />
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Low Priority Group */}
+            {priorityGroups.low.length > 0 && (
+              <div className="space-y-3">
+                <div className="flex items-center gap-2 pb-1 border-b border-[var(--border-color)]">
+                  <span className="h-2 w-2 rounded-full bg-emerald-500" />
+                  <h3 className="text-xs font-extrabold uppercase tracking-wider text-[var(--text-secondary)]">
+                    Low Priority ({priorityGroups.low.length})
+                  </h3>
+                </div>
+                <div className="space-y-2.5">
+                  {priorityGroups.low.map((task) => (
+                    <DailyTaskCard
+                      key={task.id}
+                      task={task}
+                      subject={subjects.find((s) => s.id === task.subjectId)}
+                      onToggle={toggleDailyTask}
+                      onEdit={handleOpenEditForm}
+                      onDelete={deleteDailyTask}
+                    />
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Bottom Add Task Action */}
+            {selectedDate >= getTodayStr() && (
+              <div className="pt-4 flex justify-center">
+                <Button
+                  variant="outline"
+                  onClick={handleOpenAddForm}
+                  className="flex items-center gap-2 font-bold px-6"
+                >
+                  <Plus className="h-4 w-4" /> Add Task
+                </Button>
+              </div>
+            )}
+          </>
+        )}
+      </div>
 
       {/* Form Modal */}
       <DailyTaskForm

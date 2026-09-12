@@ -36,7 +36,7 @@ export function DailyTaskForm({
   const [subjectId, setSubjectId] = useState<string>('');
   const [date, setDate] = useState<string>(initialDate || getTodayStr());
   const [priority, setPriority] = useState<'low' | 'medium' | 'high'>('medium');
-  const [estimatedMinutes, setEstimatedMinutes] = useState<string>('');
+  const [estimatedHours, setEstimatedHours] = useState<string>('');
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState('');
@@ -48,14 +48,14 @@ export function DailyTaskForm({
       setSubjectId(taskToEdit.subjectId || '');
       setDate(taskToEdit.date || initialDate || getTodayStr());
       setPriority(taskToEdit.priority || 'medium');
-      setEstimatedMinutes(taskToEdit.estimatedMinutes ? String(taskToEdit.estimatedMinutes) : '');
+      setEstimatedHours(taskToEdit.estimatedMinutes ? String(Number(taskToEdit.estimatedMinutes) / 60) : '');
     } else {
       setTitle('');
       setDescription('');
       setSubjectId('');
       setDate(initialDate || getTodayStr());
       setPriority('medium');
-      setEstimatedMinutes('');
+      setEstimatedHours('');
     }
     setError('');
   }, [taskToEdit, initialDate, isOpen]);
@@ -72,12 +72,13 @@ export function DailyTaskForm({
     }
 
     let parsedMins: number | undefined = undefined;
-    if (estimatedMinutes.trim()) {
-      parsedMins = parseInt(estimatedMinutes, 10);
-      if (isNaN(parsedMins) || parsedMins <= 0) {
-        setError('Estimated time must be a positive number of minutes.');
+    if (estimatedHours.trim()) {
+      const parsedHours = parseFloat(estimatedHours);
+      if (isNaN(parsedHours) || parsedHours <= 0) {
+        setError('Estimated time must be a positive number of hours.');
         return;
       }
+      parsedMins = Math.round(parsedHours * 60);
     }
 
     try {
@@ -178,6 +179,7 @@ export function DailyTaskForm({
               <Input
                 type="date"
                 value={date}
+                min={getTodayStr()}
                 onChange={(e) => setDate(e.target.value)}
                 required
               />
@@ -213,17 +215,18 @@ export function DailyTaskForm({
               </div>
             </div>
 
-            {/* Estimated Minutes */}
+            {/* Estimated Hours */}
             <div className="space-y-1.5">
               <label className="text-xs font-bold text-[var(--text-primary)] uppercase tracking-wider">
-                Est. Time (Mins)
+                Est. Time (Hours)
               </label>
               <Input
                 type="number"
-                min="1"
-                placeholder="e.g. 45"
-                value={estimatedMinutes}
-                onChange={(e) => setEstimatedMinutes(e.target.value)}
+                min="0.1"
+                step="0.1"
+                placeholder="e.g. 1.5"
+                value={estimatedHours}
+                onChange={(e) => setEstimatedHours(e.target.value)}
               />
             </div>
           </div>
