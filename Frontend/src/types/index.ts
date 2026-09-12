@@ -23,6 +23,7 @@ export interface StudySession {
   endTime: string;   // ISO String
   durationMinutes: number;
   type: 'manual' | 'pomodoro';
+  taskId?: string;
   notes?: string;
   createdAt: string;
 }
@@ -45,7 +46,27 @@ export interface DailyTask {
   priority: 'low' | 'medium' | 'high';
   completed: boolean;
   completedAt?: string | null;
+  completionStatus?: 'completed' | 'partial' | 'not_completed';
   estimatedMinutes?: number;
   source: 'manual' | 'goal' | 'ai' | 'exam';
   createdAt: string;
+}
+
+export interface JournalEntry {
+  id: string;
+  date: string; // YYYY-MM-DD or ISO String
+  title: string;
+  content?: string;
+
+  mood: number | null;
+  energy: number | null;
+  productivity: number | null;
+
+  achievements: string[];
+  learnings: string[];
+  challenges: string[];
+  tomorrowFocus: string[];
+
+  createdAt: string;
+  updatedAt: string;
 }

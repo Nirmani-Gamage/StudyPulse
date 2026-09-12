@@ -12,6 +12,11 @@ const studySessionSchema = new mongoose.Schema(
       required: true,
       ref: "User",
     },
+    taskId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "DailyTask",
+      default: null,
+    },
     startTime: {
       type: Date,
       required: [true, "Start time is required"],

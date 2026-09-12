@@ -17,6 +17,7 @@ import Goals from './pages/dashboard/Goals';
 import CalendarView from './pages/dashboard/Calendar';
 import Analytics from './pages/dashboard/Analytics';
 import Settings from './pages/dashboard/Settings';
+import { StudyJournal } from './pages/dashboard/StudyJournal';
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { isAuthenticated, isInitializing } = useAuth();
@@ -64,6 +65,7 @@ function App() {
                 <Route path="subjects" element={<Subjects />} />
                 <Route path="goals" element={<Goals />} />
                 <Route path="calendar" element={<CalendarView />} />
+                <Route path="journal" element={<StudyJournal />} />
                 <Route path="analytics" element={<Analytics />} />
                 <Route path="settings" element={<Settings />} />
               </Route>

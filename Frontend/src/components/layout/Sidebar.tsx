@@ -23,6 +23,7 @@ const navItems = [
   { name: 'Goals', icon: Target, path: '/dashboard/goals' },
   { name: 'Analytics', icon: BarChart2, path: '/dashboard/analytics' },
   { name: 'Calendar', icon: Calendar, path: '/dashboard/calendar' },
+  { name: 'Study Journal', icon: BookOpen, path: '/dashboard/journal' },
 ];
 
 const bottomNavItems = [

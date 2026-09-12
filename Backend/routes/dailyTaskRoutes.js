@@ -7,6 +7,7 @@ const {
   createDailyTask,
   updateDailyTask,
   toggleDailyTask,
+  updateTaskOutcome,
   deleteDailyTask,
 } = require("../controllers/dailyTaskController");
 
@@ -18,6 +19,7 @@ router.get("/", getDailyTasks);
 router.post("/", createDailyTask);
 router.put("/:id", updateDailyTask);
 router.patch("/:id/toggle", toggleDailyTask);
+router.patch("/:id/outcome", updateTaskOutcome);
 router.delete("/:id", deleteDailyTask);
 
 module.exports = router;

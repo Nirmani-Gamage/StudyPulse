@@ -34,7 +34,7 @@ const validateSessionData = (startTime, endTime, durationMinutes) => {
 // @access  Private
 const createStudySession = async (req, res) => {
   try {
-    const { subjectId, startTime, endTime, durationMinutes, type, notes } = req.body;
+    const { subjectId, taskId, startTime, endTime, durationMinutes, type, notes } = req.body;
     const userId = req.user.userId;
 
     if (!subjectId) {
@@ -59,6 +59,7 @@ const createStudySession = async (req, res) => {
     const session = await StudySession.create({
       subjectId,
       userId,
+      taskId: taskId || null,
       startTime,
       endTime,
       durationMinutes,
@@ -125,7 +126,7 @@ const getStudySessionById = async (req, res) => {
 const updateStudySession = async (req, res) => {
   try {
     const { id } = req.params;
-    const { subjectId, startTime, endTime, durationMinutes, type, notes } = req.body;
+    const { subjectId, taskId, startTime, endTime, durationMinutes, type, notes } = req.body;
     const userId = req.user.userId;
 
     if (!mongoose.Types.ObjectId.isValid(id)) {
@@ -164,6 +165,7 @@ const updateStudySession = async (req, res) => {
     // Build update object
     const updateFields = {};
     if (subjectId) updateFields.subjectId = subjectId;
+    if (taskId !== undefined) updateFields.taskId = taskId;
     if (startTime) updateFields.startTime = startTime;
     if (endTime) updateFields.endTime = endTime;
     if (durationMinutes !== undefined) updateFields.durationMinutes = durationMinutes;

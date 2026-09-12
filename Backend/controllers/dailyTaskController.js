@@ -335,11 +335,56 @@ const deleteDailyTask = async (req, res) => {
   }
 };
 
+// @desc    Update task outcome (completed, partial, not_completed)
+// @route   PATCH /api/daily-tasks/:id/outcome
+// @access  Private
+const updateTaskOutcome = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { status } = req.body;
+    const userId = req.user.userId;
+
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({ message: "Invalid task ID" });
+    }
+
+    if (!["completed", "partial", "not_completed"].includes(status)) {
+      return res.status(400).json({ message: "Invalid status outcome" });
+    }
+
+    const existingTask = await DailyTask.findOne({ _id: id, userId });
+    if (!existingTask) {
+      return res.status(404).json({ message: "Task not found" });
+    }
+
+    existingTask.completionStatus = status;
+    
+    if (status === "completed") {
+      existingTask.completed = true;
+      existingTask.completedAt = new Date();
+    } else {
+      existingTask.completed = false;
+      existingTask.completedAt = null;
+    }
+
+    await existingTask.save();
+
+    res.status(200).json({
+      message: `Task outcome updated to ${status}`,
+      task: existingTask,
+    });
+  } catch (error) {
+    console.error("Error in updateTaskOutcome:", error);
+    res.status(500).json({ message: "Server error" });
+  }
+};
+
 module.exports = {
   getDailyTasks,
   getTodayTasks,
   createDailyTask,
   updateDailyTask,
   toggleDailyTask,
+  updateTaskOutcome,
   deleteDailyTask,
 };

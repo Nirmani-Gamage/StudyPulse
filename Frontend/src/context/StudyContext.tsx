@@ -1,7 +1,7 @@
 import { createContext, useContext, useEffect, useState, useCallback } from 'react';
 import { api } from '../lib/api';
 import { useAuth } from './AuthContext';
-import type { Subject, Goal, StudySession, CalendarEvent, DailyTask } from '../types';
+import type { Subject, Goal, StudySession, CalendarEvent, DailyTask, JournalEntry } from '../types';
 
 interface StudyState {
   subjects: Subject[];
@@ -9,6 +9,7 @@ interface StudyState {
   sessions: StudySession[];
   events: CalendarEvent[];
   dailyTasks: DailyTask[];
+  journalEntries: JournalEntry[];
   
   error: string | null;
   refreshData: () => Promise<void>;
@@ -30,9 +31,14 @@ interface StudyState {
   deleteEvent: (id: string) => Promise<void>;
   
   addDailyTask: (task: Omit<DailyTask, 'id' | 'createdAt' | 'completed' | 'completedAt'>) => Promise<DailyTask | undefined>;
-  updateDailyTask: (id: string, updates: Partial<Omit<DailyTask, 'id' | 'createdAt' | 'completed' | 'completedAt'>>) => Promise<void>;
+  updateDailyTask: (id: string, updates: Partial<Omit<DailyTask, 'id' | 'createdAt' | 'completed' | 'completedAt' | 'completionStatus'>>) => Promise<void>;
   toggleDailyTask: (id: string) => Promise<void>;
+  updateTaskOutcome: (id: string, status: 'completed' | 'partial' | 'not_completed') => Promise<void>;
   deleteDailyTask: (id: string) => Promise<void>;
+
+  addJournalEntry: (entry: Omit<JournalEntry, 'id' | 'createdAt' | 'updatedAt'>) => Promise<JournalEntry | undefined>;
+  updateJournalEntry: (id: string, updates: Partial<Omit<JournalEntry, 'id' | 'createdAt' | 'updatedAt' | 'userId'>>) => Promise<void>;
+  deleteJournalEntry: (id: string) => Promise<void>;
 
   isLoading: boolean;
   resetData: () => void;
@@ -44,6 +50,7 @@ const initialState: StudyState = {
   sessions: [],
   events: [],
   dailyTasks: [],
+  journalEntries: [],
   error: null,
   refreshData: async () => {},
   addSubject: async () => undefined,
@@ -62,7 +69,11 @@ const initialState: StudyState = {
   addDailyTask: async () => undefined,
   updateDailyTask: async () => {},
   toggleDailyTask: async () => {},
+  updateTaskOutcome: async () => {},
   deleteDailyTask: async () => {},
+  addJournalEntry: async () => undefined,
+  updateJournalEntry: async () => {},
+  deleteJournalEntry: async () => {},
   isLoading: false,
   resetData: () => {},
 };
@@ -75,6 +86,7 @@ export function StudyProvider({ children }: { children: React.ReactNode }) {
   const [sessions, setSessions] = useState<StudySession[]>([]);
   const [events, setEvents] = useState<CalendarEvent[]>([]);
   const [dailyTasks, setDailyTasks] = useState<DailyTask[]>([]);
+  const [journalEntries, setJournalEntries] = useState<JournalEntry[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -91,7 +103,8 @@ export function StudyProvider({ children }: { children: React.ReactNode }) {
         api.get('/goals'),
         api.get('/sessions'),
         api.get('/events'),
-        api.get('/daily-tasks')
+        api.get('/daily-tasks'),
+        api.get('/journal')
       ]);
 
       let hasError = false;
@@ -109,6 +122,9 @@ export function StudyProvider({ children }: { children: React.ReactNode }) {
       else hasError = true;
 
       if (results[4].status === 'fulfilled') setDailyTasks(results[4].value.tasks || []);
+      else hasError = true;
+
+      if (results[5].status === 'fulfilled') setJournalEntries(results[5].value.entries || []);
       else hasError = true;
 
       if (hasError) {
@@ -141,6 +157,7 @@ export function StudyProvider({ children }: { children: React.ReactNode }) {
     setSessions([]);
     setEvents([]);
     setDailyTasks([]);
+    setJournalEntries([]);
     setError(null);
   };
 
@@ -265,21 +282,53 @@ export function StudyProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  const updateTaskOutcome = async (id: string, status: 'completed' | 'partial' | 'not_completed') => {
+    setError(null);
+    const data = await api.patch(`/daily-tasks/${id}/outcome`, { status });
+    if (data.task) {
+      setDailyTasks(prev => prev.map(t => t.id === id ? data.task : t));
+    }
+  };
+
   const deleteDailyTask = async (id: string) => {
     setError(null);
     await api.delete(`/daily-tasks/${id}`);
     setDailyTasks(prev => prev.filter(t => t.id !== id));
   };
 
+  const addJournalEntry = async (entry: Omit<JournalEntry, 'id' | 'createdAt' | 'updatedAt'>) => {
+    setError(null);
+    const data = await api.post('/journal', entry);
+    if (data.entry) {
+      setJournalEntries(prev => [data.entry, ...prev]);
+      return data.entry;
+    }
+  };
+
+  const updateJournalEntry = async (id: string, updates: Partial<Omit<JournalEntry, 'id' | 'createdAt' | 'updatedAt' | 'userId'>>) => {
+    setError(null);
+    const data = await api.put(`/journal/${id}`, updates);
+    if (data.entry) {
+      setJournalEntries(prev => prev.map(e => e.id === id ? data.entry : e));
+    }
+  };
+
+  const deleteJournalEntry = async (id: string) => {
+    setError(null);
+    await api.delete(`/journal/${id}`);
+    setJournalEntries(prev => prev.filter(e => e.id !== id));
+  };
+
   return (
     <StudyContext.Provider value={{
-      subjects, goals, sessions, events, dailyTasks,
+      subjects, goals, sessions, events, dailyTasks, journalEntries,
       error, refreshData,
       addSubject, updateSubject, deleteSubject,
       addGoal, updateGoal, updateGoalProgress, deleteGoal,
       addSession, updateSession, deleteSession,
       addEvent, updateEvent, deleteEvent,
-      addDailyTask, updateDailyTask, toggleDailyTask, deleteDailyTask,
+      addDailyTask, updateDailyTask, toggleDailyTask, updateTaskOutcome, deleteDailyTask,
+      addJournalEntry, updateJournalEntry, deleteJournalEntry,
       isLoading, resetData
     }}>
       {children}

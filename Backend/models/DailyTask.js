@@ -39,6 +39,11 @@ const dailyTaskSchema = new mongoose.Schema(
       type: Date,
       default: null,
     },
+    completionStatus: {
+      type: String,
+      enum: ["completed", "partial", "not_completed"],
+      default: "not_completed",
+    },
     estimatedMinutes: {
       type: Number,
       default: null,

@@ -1,12 +1,14 @@
 import { useState, useEffect, useRef } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useStudyData } from '../../context/StudyContext';
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
-import { Play, Pause, Square, Timer, Target, Search, BookOpen } from 'lucide-react';
+import { Play, Pause, Square, Timer, Target, Search, BookOpen, CheckCircle } from 'lucide-react';
 
 interface SavedTimer {
   goalId: string;
   subjectId: string;
+  taskId?: string;
   customMinutes: number;
   timeLeft: number;
   isActive: boolean;
@@ -16,9 +18,13 @@ interface SavedTimer {
 }
 
 export default function Pomodoro() {
-  const { subjects, goals, addSession, updateGoalProgress } = useStudyData();
+  const { subjects, goals, dailyTasks, addSession, updateGoalProgress, updateTaskOutcome } = useStudyData();
+  const [searchParams] = useSearchParams();
+  const queryTaskId = searchParams.get('taskId');
+
   const [subjectId, setSubjectId] = useState('');
   const [goalId, setGoalId] = useState('');
+  const [taskId, setTaskId] = useState('');
   const [customMinutes, setCustomMinutes] = useState(25);
   
   const [timeLeft, setTimeLeft] = useState(25 * 60);
@@ -31,6 +37,11 @@ export default function Pomodoro() {
   
   const [status, setStatus] = useState<{type: 'success' | 'error' | 'warning', message: string} | null>(null);
   const isCompletingRef = useRef(false);
+
+  // Outcome Dialog State
+  const [showOutcomeDialog, setShowOutcomeDialog] = useState(false);
+  const [pendingSessionDuration, setPendingSessionDuration] = useState<number | null>(null);
+  const [pendingOutcomeStatus, setPendingOutcomeStatus] = useState<'completed' | 'partial' | 'not_completed'>('completed');
 
   // Search state for subjects
   const [subjectSearch, setSubjectSearch] = useState('');
@@ -48,7 +59,22 @@ export default function Pomodoro() {
     setIsInitialized(true);
   }, []);
 
-  const currentKey = goalId || 'general';
+  const currentKey = taskId || goalId || 'general';
+
+  useEffect(() => {
+    if (isInitialized && queryTaskId) {
+      const task = dailyTasks.find(t => t.id === queryTaskId);
+      if (task && !isActive && !sessionStartTime) {
+        setTaskId(task.id);
+        if (task.subjectId) setSubjectId(task.subjectId);
+        if (task.estimatedMinutes) {
+          setCustomMinutes(task.estimatedMinutes);
+          setTimeLeft(task.estimatedMinutes * 60);
+        }
+        setGoalId('');
+      }
+    }
+  }, [isInitialized, queryTaskId, dailyTasks, isActive, sessionStartTime]);
 
   useEffect(() => {
     if (isInitialized && subjectId && sessionStartTime) {
@@ -56,8 +82,9 @@ export default function Pomodoro() {
         const next = {
           ...prev,
           [currentKey]: {
-            goalId: currentKey,
+            goalId: currentKey, // reusing goalId key in SavedTimer as draft key for simplicity
             subjectId,
+            taskId,
             customMinutes,
             timeLeft,
             isActive,
@@ -70,7 +97,7 @@ export default function Pomodoro() {
         return next;
       });
     }
-  }, [timeLeft, isActive, expectedEndTime, customMinutes, subjectId, sessionStartTime, currentKey, isInitialized]);
+  }, [timeLeft, isActive, expectedEndTime, customMinutes, subjectId, sessionStartTime, currentKey, isInitialized, taskId]);
 
   const clearDraft = (keyToClear = currentKey) => {
     setSavedTimers(prev => {
@@ -84,13 +111,13 @@ export default function Pomodoro() {
   useEffect(() => {
     if (!isInitialized) return;
     
-    const key = goalId || 'general';
-    const draft = savedTimers[key];
+    const draft = savedTimers[currentKey];
     
     if (draft && !isActive) {
       setCustomMinutes(draft.customMinutes);
       setTimeLeft(draft.timeLeft);
       setSubjectId(draft.subjectId);
+      if (draft.taskId) setTaskId(draft.taskId);
       setSessionStartTime(draft.sessionStartTime ? new Date(draft.sessionStartTime) : null);
       setExpectedEndTime(draft.expectedEndTime);
       
@@ -99,11 +126,68 @@ export default function Pomodoro() {
          setTimeLeft(remaining);
          setIsActive(true);
       }
-    } else if (!draft && !isActive && goalId) {
+    } else if (!draft && !isActive && (goalId || taskId)) {
       setSessionStartTime(null);
       setExpectedEndTime(null);
     }
-  }, [goalId, goals, isInitialized]);
+  }, [goalId, taskId, goals, isInitialized, currentKey, savedTimers, isActive]);
+
+  const executeSaveSession = async (actualMinutes: number, outcomeStatus?: 'completed' | 'partial' | 'not_completed') => {
+    if (!subjectId || !sessionStartTime) return;
+    try {
+      await addSession({
+        subjectId,
+        taskId: taskId || undefined,
+        startTime: sessionStartTime.toISOString(),
+        endTime: new Date().toISOString(),
+        durationMinutes: actualMinutes,
+        type: 'pomodoro',
+      });
+      
+      if (taskId && outcomeStatus) {
+        await updateTaskOutcome(taskId, outcomeStatus);
+      }
+
+      if (goalId) {
+        try {
+          const hours = actualMinutes / 60;
+          await updateGoalProgress(goalId, hours);
+          setStatus({ type: 'success', message: `Session saved (${actualMinutes}m) and goal progress updated!` });
+        } catch (goalError) {
+          console.error('Goal update failed', goalError);
+          setStatus({ type: 'warning', message: `Session saved (${actualMinutes}m), but failed to update Goal progress.` });
+        }
+      } else {
+        setStatus({ type: 'success', message: `Session saved (${actualMinutes}m) successfully!` });
+      }
+      clearDraft();
+    } catch (e) {
+      console.error('Failed to save session', e);
+      setStatus({ type: 'error', message: 'Failed to save Study Session. Please try again.' });
+    } finally {
+      isCompletingRef.current = false;
+      setExpectedEndTime(null);
+      setSessionStartTime(null);
+      setTimeLeft(customMinutes * 60);
+      setShowOutcomeDialog(false);
+      setPendingSessionDuration(null);
+      if (taskId && outcomeStatus === 'completed') {
+         setTaskId('');
+      }
+    }
+  };
+
+  const handleSessionCompletion = (actualMinutes: number) => {
+    setIsActive(false);
+    setExpectedEndTime(null);
+    if (taskId) {
+      setPendingSessionDuration(actualMinutes);
+      setShowOutcomeDialog(true);
+      isCompletingRef.current = false; // release lock for dialog interaction
+    } else {
+      executeSaveSession(actualMinutes);
+    }
+  };
 
   useEffect(() => {
     let interval: ReturnType<typeof setInterval>;
@@ -116,54 +200,11 @@ export default function Pomodoro() {
     } else if (timeLeft === 0 && isActive) {
       if (isCompletingRef.current) return;
       isCompletingRef.current = true;
-      
-      setIsActive(false);
-      setExpectedEndTime(null);
-      
-      const completeSession = async () => {
-        if (subjectId && sessionStartTime) {
-          setStatus(null);
-          try {
-            await addSession({
-              subjectId,
-              startTime: sessionStartTime.toISOString(),
-              endTime: new Date().toISOString(),
-              durationMinutes: customMinutes,
-              type: 'pomodoro',
-            });
-            
-            if (goalId) {
-              try {
-                const hours = customMinutes / 60;
-                await updateGoalProgress(goalId, hours);
-                setStatus({ type: 'success', message: 'Session completed and goal progress updated!' });
-              } catch (goalError) {
-                console.error('Goal update failed', goalError);
-                setStatus({ type: 'warning', message: 'Session saved, but failed to update Goal progress.' });
-              }
-            } else {
-              setStatus({ type: 'success', message: 'Session completed and saved successfully!' });
-            }
-            clearDraft();
-          } catch (e) {
-            console.error('Failed to save pomodoro session', e);
-            setStatus({ type: 'error', message: 'Failed to save Study Session. Please try again.' });
-          } finally {
-            isCompletingRef.current = false;
-            setExpectedEndTime(null);
-          }
-        } else {
-          isCompletingRef.current = false;
-          setExpectedEndTime(null);
-        }
-      };
-
-      completeSession();
-      setTimeLeft(customMinutes * 60); 
+      handleSessionCompletion(customMinutes);
     }
 
     return () => clearInterval(interval);
-  }, [isActive, timeLeft, subjectId, sessionStartTime, goalId, addSession, updateGoalProgress, expectedEndTime, customMinutes]);
+  }, [isActive, timeLeft, expectedEndTime, customMinutes]);
 
   const toggleTimer = () => {
     if (!isActive) {
@@ -194,43 +235,10 @@ export default function Pomodoro() {
     
     if (isCompletingRef.current) return;
     isCompletingRef.current = true;
-
-    setIsActive(false);
     
-    try {
-      const durationElapsed = customMinutes * 60 - timeLeft;
-      const actualMinutes = Math.max(1, Math.round(durationElapsed / 60));
-      
-      await addSession({
-        subjectId,
-        startTime: sessionStartTime.toISOString(),
-        endTime: new Date().toISOString(),
-        durationMinutes: actualMinutes,
-        type: 'pomodoro',
-      });
-
-      if (goalId) {
-        try {
-          const hours = actualMinutes / 60;
-          await updateGoalProgress(goalId, hours);
-          setStatus({ type: 'success', message: `Stopped early. Session saved (${actualMinutes}m) and goal updated.` });
-        } catch (goalError) {
-          setStatus({ type: 'warning', message: `Stopped early. Session saved (${actualMinutes}m), but failed to update Goal.` });
-        }
-      } else {
-        setStatus({ type: 'success', message: `Stopped early. Session saved (${actualMinutes}m).` });
-      }
-      
-      clearDraft();
-    } catch (e) {
-      console.error('Failed to save manual stop session', e);
-      setStatus({ type: 'error', message: 'Failed to save Study Session.' });
-    } finally {
-      isCompletingRef.current = false;
-      setTimeLeft(customMinutes * 60);
-      setExpectedEndTime(null);
-      setSessionStartTime(null);
-    }
+    const durationElapsed = customMinutes * 60 - timeLeft;
+    const actualMinutes = Math.max(1, Math.round(durationElapsed / 60));
+    handleSessionCompletion(actualMinutes);
   };
 
   const formatTime = (seconds: number) => {
@@ -243,6 +251,7 @@ export default function Pomodoro() {
   
   const selectedSubjectObj = subjects.find(s => s.id === subjectId);
   const selectedGoalObj = goals.find(g => g.id === goalId);
+  const selectedTaskObj = dailyTasks.find(t => t.id === taskId);
   
   let timerStatus = 'Ready to Focus';
   if (isActive) timerStatus = 'Focusing';
@@ -299,13 +308,20 @@ export default function Pomodoro() {
 
                {/* Selected Configuration Context */}
                <div className="w-full text-center mb-8 space-y-1.5 min-h-[60px] flex flex-col justify-center">
-                 {subjectId ? (
+                 {selectedTaskObj ? (
+                   <>
+                     <h3 className="text-lg font-bold text-[var(--color-primary)] flex items-center justify-center gap-1.5">
+                        <CheckCircle className="h-4 w-4" /> {selectedTaskObj.title}
+                     </h3>
+                     <p className="text-sm font-semibold text-[var(--text-secondary)]">{selectedSubjectObj?.name}</p>
+                   </>
+                 ) : subjectId ? (
                    <>
                      <h3 className="text-lg font-bold text-[var(--text-primary)]">{selectedSubjectObj?.name}</h3>
                      {selectedGoalObj && <p className="text-sm font-semibold text-[var(--text-secondary)] flex items-center justify-center gap-1.5"><Target className="h-3.5 w-3.5" /> {selectedGoalObj.title}</p>}
                    </>
                  ) : (
-                   <p className="text-sm font-medium text-[var(--text-secondary)] italic">Please select a subject to begin</p>
+                   <p className="text-sm font-medium text-[var(--text-secondary)] italic">Please select a subject or task to begin</p>
                  )}
                </div>
 
@@ -396,7 +412,7 @@ export default function Pomodoro() {
                     {filteredSubjects.map(s => (
                       <button
                         key={s.id}
-                        onClick={() => { setSubjectId(s.id); setGoalId(''); }}
+                        onClick={() => { setSubjectId(s.id); setGoalId(''); setTaskId(''); }}
                         disabled={isActive}
                         aria-pressed={subjectId === s.id}
                         className={`px-4 py-2 rounded-full text-sm font-bold transition-all border disabled:opacity-50 ${subjectId === s.id ? 'bg-[var(--color-primary)] text-white border-[var(--color-primary)] shadow-md' : 'bg-[var(--bg-main)] text-[var(--text-secondary)] border-[var(--border-color)] hover:border-[var(--color-primary)]/50 hover:text-[var(--text-primary)]'}`}
@@ -413,12 +429,12 @@ export default function Pomodoro() {
                 <label className="text-sm font-bold text-[var(--text-primary)]">2. Select Goal (Optional)</label>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-h-64 overflow-y-auto pr-2 pb-2">
                   <button 
-                    onClick={() => setGoalId('')}
+                    onClick={() => { setGoalId(''); setTaskId(''); }}
                     disabled={isActive || !subjectId}
                     aria-pressed={!goalId}
-                    className={`p-4 rounded-xl border text-left transition-all disabled:opacity-50 ${!goalId ? 'bg-[var(--color-primary)]/5 border-[var(--color-primary)] shadow-sm ring-1 ring-[var(--color-primary)]' : 'bg-[var(--bg-main)] border-[var(--border-color)] hover:border-[var(--color-primary)]/50'}`}
+                    className={`p-4 rounded-xl border text-left transition-all disabled:opacity-50 ${!goalId && !taskId ? 'bg-[var(--color-primary)]/5 border-[var(--color-primary)] shadow-sm ring-1 ring-[var(--color-primary)]' : 'bg-[var(--bg-main)] border-[var(--border-color)] hover:border-[var(--color-primary)]/50'}`}
                   >
-                    <p className={`text-sm font-bold ${!goalId ? 'text-[var(--color-primary)]' : 'text-[var(--text-primary)]'}`}>No specific goal</p>
+                    <p className={`text-sm font-bold ${!goalId && !taskId ? 'text-[var(--color-primary)]' : 'text-[var(--text-primary)]'}`}>No specific goal</p>
                     <p className="text-xs font-medium text-[var(--text-secondary)] mt-1">General study session</p>
                   </button>
                   {availableGoals.map(g => {
@@ -428,6 +444,7 @@ export default function Pomodoro() {
                         key={g.id}
                         onClick={() => {
                           setGoalId(g.id);
+                          setTaskId('');
                           if (g.subjectId) setSubjectId(g.subjectId);
                         }}
                         disabled={isActive || (!subjectId && g.subjectId !== subjectId)}
@@ -532,6 +549,7 @@ export default function Pomodoro() {
                            onClick={() => {
                              const draft = savedTimers['general'];
                              setGoalId('');
+                             setTaskId(draft.taskId || '');
                              setSubjectId(draft.subjectId);
                              setCustomMinutes(draft.customMinutes);
                              setTimeLeft(draft.timeLeft);
@@ -599,6 +617,7 @@ export default function Pomodoro() {
                              onClick={() => {
                                if (draft) {
                                  setGoalId(goal.id);
+                                 setTaskId(draft.taskId || '');
                                  setSubjectId(draft.subjectId);
                                  setCustomMinutes(draft.customMinutes);
                                  setTimeLeft(draft.timeLeft);
@@ -607,6 +626,7 @@ export default function Pomodoro() {
                                  setIsActive(draft.isActive);
                                } else {
                                  setGoalId(goal.id);
+                                 setTaskId('');
                                  if (goal.subjectId) setSubjectId(goal.subjectId);
                                  setSessionStartTime(null);
                                  setExpectedEndTime(null);
@@ -625,9 +645,57 @@ export default function Pomodoro() {
               )}
             </CardContent>
           </Card>
-
         </div>
       </div>
+
+      {showOutcomeDialog && pendingSessionDuration !== null && selectedTaskObj && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+          <Card className="w-full max-w-md bg-[var(--card-bg)] shadow-xl border border-[var(--border-color)]">
+            <CardHeader className="text-center pb-2">
+              <CardTitle className="text-xl font-extrabold text-[var(--text-primary)]">Study session completed!</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <div className="text-center space-y-1">
+                <p className="text-[var(--color-primary)] font-bold">{selectedTaskObj.title}</p>
+                <p className="text-[var(--text-secondary)] text-sm">{pendingSessionDuration} minutes studied</p>
+              </div>
+
+              <div className="space-y-3">
+                <p className="text-sm font-bold text-[var(--text-primary)] text-center">Was the task completed?</p>
+                <div className="flex flex-col gap-2">
+                  {[
+                    { value: 'completed', label: 'Yes' },
+                    { value: 'partial', label: 'Partially' },
+                    { value: 'not_completed', label: 'No' }
+                  ].map((option) => (
+                    <button
+                      key={option.value}
+                      onClick={() => setPendingOutcomeStatus(option.value as any)}
+                      className={`py-3 px-4 rounded-lg font-bold text-sm transition-all border ${
+                        pendingOutcomeStatus === option.value
+                          ? 'bg-[var(--color-primary)] text-white border-[var(--color-primary)] shadow-md'
+                          : 'bg-[var(--bg-main)] text-[var(--text-primary)] border-[var(--border-color)] hover:border-[var(--color-primary)]/50'
+                      }`}
+                    >
+                      {option.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <Button
+                className="w-full font-bold shadow-md"
+                onClick={() => {
+                  isCompletingRef.current = true;
+                  executeSaveSession(pendingSessionDuration, pendingOutcomeStatus);
+                }}
+              >
+                Save Session & Task
+              </Button>
+            </CardContent>
+          </Card>
+        </div>
+      )}
     </div>
   );
 }

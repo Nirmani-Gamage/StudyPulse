@@ -1,6 +1,7 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import type { DailyTask, Subject } from '../../types';
-import { CheckSquare, Square, MoreVertical, Edit2, Trash2, Clock } from 'lucide-react';
+import { CheckSquare, Square, MoreVertical, Edit2, Trash2, Clock, Play } from 'lucide-react';
 import { Button } from '../ui/Button';
 
 interface DailyTaskCardProps {
@@ -12,6 +13,7 @@ interface DailyTaskCardProps {
 }
 
 export function DailyTaskCard({ task, subject, onToggle, onEdit, onDelete }: DailyTaskCardProps) {
+  const navigate = useNavigate();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isToggling, setIsToggling] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -115,6 +117,33 @@ export function DailyTaskCard({ task, subject, onToggle, onEdit, onDelete }: Dai
               <Clock className="h-3 w-3" />
               {task.estimatedMinutes} min
             </span>
+          )}
+        </div>
+
+        {/* Task Actions & Status */}
+        <div className="mt-3 flex items-center gap-2">
+          {task.completionStatus === 'partial' && (
+            <span className="text-xs font-bold text-amber-500 flex items-center gap-1 bg-amber-500/10 px-2.5 py-1 rounded-md border border-amber-500/20">
+              ◐ Partially completed
+            </span>
+          )}
+          {task.completionStatus === 'completed' && (
+            <span className="text-xs font-bold text-emerald-500 flex items-center gap-1 bg-emerald-500/10 px-2.5 py-1 rounded-md border border-emerald-500/20">
+              ✓ Completed
+            </span>
+          )}
+          {task.completionStatus !== 'completed' && !task.completed && (
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-7 text-xs font-bold gap-1.5 px-3 border-[var(--color-primary)]/30 text-[var(--color-primary)] hover:bg-[var(--color-primary)]/10"
+              onClick={(e) => {
+                e.stopPropagation();
+                navigate(`/dashboard/pomodoro?taskId=${task.id}`);
+              }}
+            >
+              <Play className="h-3 w-3" fill="currentColor" /> Start Session
+            </Button>
           )}
         </div>
       </div>
