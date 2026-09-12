@@ -27,6 +27,7 @@ const calendarEventRoutes = require("./routes/calendarEventRoutes");
 const dailyTaskRoutes = require("./routes/dailyTaskRoutes");
 const journalRoutes = require("./routes/journalRoutes");
 const analyticsRoutes = require("./routes/analyticsRoutes");
+const recommendationRoutes = require("./routes/recommendationRoutes");
 
 app.use("/api/auth", authRoutes);
 app.use("/api/user", userRoutes);
@@ -37,6 +38,7 @@ app.use("/api/events", calendarEventRoutes);
 app.use("/api/daily-tasks", dailyTaskRoutes);
 app.use("/api/journal", journalRoutes);
 app.use("/api/analytics", analyticsRoutes);
+app.use("/api/recommendations", recommendationRoutes);
 
 // Test route
 app.get("/", (req, res) => {

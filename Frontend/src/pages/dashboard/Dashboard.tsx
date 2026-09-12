@@ -11,6 +11,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { getBestStudyTime } from '../../lib/insights';
 import { useProfile } from '../../hooks/useProfile';
 import { useAuth } from '../../context/AuthContext';
+import { DashboardRecommendations } from '../../components/recommendations/DashboardRecommendations';
 
 export default function Dashboard() {
   const { user } = useAuth();
@@ -271,6 +272,11 @@ export default function Dashboard() {
             <span className="hidden sm:inline">Calendar</span>
           </Button>
         </div>
+      </motion.div>
+
+      {/* SMART RECOMMENDATIONS */}
+      <motion.div variants={itemVariants}>
+        <DashboardRecommendations />
       </motion.div>
 
       {/* MAIN CONTENT + SMART SIDEBAR LAYOUT */}

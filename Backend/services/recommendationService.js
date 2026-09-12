@@ -1,107 +1,308 @@
+const mongoose = require('mongoose');
+const StudySession = require('../models/StudySession');
+const DailyTask = require('../models/DailyTask');
+const Goal = require('../models/Goal');
+const CalendarEvent = require('../models/CalendarEvent');
+const Subject = require('../models/Subject');
+const analyticsService = require('./analyticsService');
+const effectivenessService = require('./effectivenessService');
+
+// Priority mapping based on score
+const getPriority = (score) => {
+  if (score >= 80) return 'HIGH';
+  if (score >= 60) return 'MEDIUM';
+  return 'LOW';
+};
+
 /**
- * Generates deterministic rule-based recommendations based on the effectiveness component scores.
- * Maximum of 3 recommendations returned, prioritized by the lowest scores.
+ * Retrieves all context needed for recommendations using parallel queries
  */
-
-exports.generateRecommendations = (effectiveness) => {
-  if (!effectiveness || !effectiveness.sufficientData || !effectiveness.components) {
-    return [];
-  }
-
-  const { goalProgress, productivity, consistency, studyDistribution, revision } = effectiveness.components;
+const getRecommendationContext = async (userId, options) => {
+  const now = new Date();
   
-  const possibleRecommendations = [];
+  // 14 days ago for recent study history
+  const historyStart = new Date(now);
+  historyStart.setDate(now.getDate() - 14);
 
-  // Check Consistency
-  if (consistency.available && consistency.score !== null) {
-    if (consistency.score < 60) {
-      possibleRecommendations.push({
-        type: 'consistency',
-        score: consistency.score,
-        priority: consistency.score < 40 ? 'high' : 'medium',
-        title: 'Build a more consistent routine',
-        message: 'Try scheduling shorter study sessions across more days instead of cramming.'
+  // Future for upcoming exams
+  const futureEnd = new Date(now);
+  futureEnd.setDate(now.getDate() + 30); // look up to 30 days ahead
+
+  const [
+    subjects,
+    activeGoals,
+    upcomingExams,
+    recentSessions,
+    incompleteTasks,
+    learningMetrics
+  ] = await Promise.all([
+    Subject.find({ userId }),
+    Goal.find({ userId, isCompleted: false }),
+    CalendarEvent.find({ userId, type: 'exam', date: { $gte: now, $lte: futureEnd } }),
+    StudySession.find({ userId, startTime: { $gte: historyStart } }),
+    DailyTask.find({ userId, completed: false, priority: 'high' }),
+    analyticsService.getLearningMetrics(userId, { range: '14d' }) // Re-use phase 4 metrics
+  ]);
+
+  const effectiveness = effectivenessService.calculateEffectiveness(learningMetrics);
+
+  // Group study sessions by subject for quick lookup
+  const subjectStudyMap = {};
+  subjects.forEach(s => subjectStudyMap[s._id.toString()] = { 
+    totalMinutes: 0, 
+    lastStudied: null,
+    subject: s 
+  });
+  
+  recentSessions.forEach(s => {
+    if (!s.subjectId) return;
+    const sid = s.subjectId.toString();
+    if (!subjectStudyMap[sid]) return;
+    
+    subjectStudyMap[sid].totalMinutes += s.durationMinutes;
+    if (!subjectStudyMap[sid].lastStudied || s.startTime > subjectStudyMap[sid].lastStudied) {
+      subjectStudyMap[sid].lastStudied = s.startTime;
+    }
+  });
+
+  return {
+    now,
+    subjects,
+    activeGoals,
+    upcomingExams,
+    subjectStudyMap,
+    incompleteTasks,
+    effectiveness
+  };
+};
+
+/**
+ * Evaluates rules and generates raw recommendation candidates
+ */
+const evaluateRules = (context) => {
+  const { now, upcomingExams, subjectStudyMap, activeGoals, incompleteTasks, effectiveness } = context;
+  const candidates = [];
+  
+  // Track subjects that have exam prep so we don't duplicate with revision/inactive
+  const subjectsWithExamPrep = new Set();
+
+  // RULE 1: Upcoming Exam Preparation
+  upcomingExams.forEach(exam => {
+    const daysUntil = (exam.date.getTime() - now.getTime()) / (1000 * 3600 * 24);
+    if (daysUntil <= 14) {
+      const sid = exam.subjectId ? exam.subjectId.toString() : null;
+      let recentStudy = 0;
+      let subjectName = exam.title || "Exam Subject";
+      
+      if (sid && subjectStudyMap[sid]) {
+        recentStudy = subjectStudyMap[sid].totalMinutes;
+        subjectName = subjectStudyMap[sid].subject.name;
+        subjectsWithExamPrep.add(sid);
+      }
+
+      // Base urgency score
+      let score = 0;
+      if (daysUntil <= 3) score += 50;
+      else if (daysUntil <= 7) score += 35;
+      else score += 20;
+
+      // Deficit score
+      if (recentStudy === 0) score += 45;
+      else if (recentStudy < 60) score += 30;
+      else if (recentStudy < 120) score += 15;
+
+      if (score >= 40) {
+        candidates.push({
+          id: `exam-prep-${exam._id}`,
+          type: 'EXAM_PREPARATION',
+          subjectId: sid,
+          subject: subjectName,
+          title: `Prepare for ${subjectName}`,
+          duration: score >= 80 ? 60 : 45,
+          score: Math.min(100, score),
+          reason: [
+            `Exam in ${Math.ceil(daysUntil)} days`,
+            `Only ${recentStudy} minutes studied recently`
+          ],
+          action: { type: 'START_STUDY', subjectId: sid, duration: score >= 80 ? 60 : 45 }
+        });
+      }
+    }
+  });
+
+  // RULE 3 & 4: Goal Risk
+  activeGoals.forEach(goal => {
+    if (!goal.deadline) return;
+    const daysUntil = (new Date(goal.deadline).getTime() - now.getTime()) / (1000 * 3600 * 24);
+    
+    if (daysUntil > 0 && daysUntil <= 14) {
+      const progress = goal.targetHours > 0 ? (goal.completedHours / goal.targetHours) * 100 : 0;
+      let score = 0;
+      
+      if (daysUntil <= 3 && progress < 50) score = 95;
+      else if (daysUntil <= 7 && progress < 50) score = 85;
+      else if (daysUntil <= 12 && progress < 60) score = 70;
+      else if (daysUntil <= 14 && progress < 70) score = 60;
+
+      if (score >= 60) {
+        candidates.push({
+          id: `goal-risk-${goal._id}`,
+          type: 'GOAL_RISK',
+          subjectId: goal.subjectId ? goal.subjectId.toString() : null,
+          subject: goal.title,
+          title: `Progress Goal: ${goal.title}`,
+          duration: score >= 80 ? 45 : 30,
+          score,
+          reason: [
+            `Goal deadline in ${Math.ceil(daysUntil)} days`,
+            `Completion is only ${Math.round(progress)}%`
+          ],
+          action: { type: 'VIEW_GOAL', subjectId: goal.subjectId ? goal.subjectId.toString() : null, duration: 45 }
+        });
+      }
+    }
+  });
+
+  // RULE 2: Inactive Subject
+  Object.keys(subjectStudyMap).forEach(sid => {
+    if (subjectsWithExamPrep.has(sid)) return; // Don't duplicate if already an exam prep
+    const data = subjectStudyMap[sid];
+    
+    if (data.lastStudied) {
+      const daysSince = (now.getTime() - data.lastStudied.getTime()) / (1000 * 3600 * 24);
+      if (daysSince >= 5) {
+        let score = 50;
+        if (daysSince >= 10) score = 85;
+        else if (daysSince >= 7) score = 70;
+
+        candidates.push({
+          id: `inactive-${sid}`,
+          type: 'INACTIVE_SUBJECT',
+          subjectId: sid,
+          subject: data.subject.name,
+          title: `Review ${data.subject.name}`,
+          duration: score >= 80 ? 45 : 30,
+          score,
+          reason: [`You haven't studied this subject for ${Math.floor(daysSince)} days`],
+          action: { type: 'START_STUDY', subjectId: sid, duration: score >= 80 ? 45 : 30 }
+        });
+      }
+    }
+  });
+
+  // Check Effectiveness Components
+  if (effectiveness && effectiveness.components) {
+    const { consistency, productivity, studyDistribution, revision } = effectiveness.components;
+
+    // RULE 5: Revision
+    if (revision && revision.available && revision.score < 50 && upcomingExams.length > 0) {
+      candidates.push({
+        id: 'sys-revision',
+        type: 'REVISION',
+        subjectId: null,
+        subject: "General Revision",
+        title: "Add a Revision Session",
+        duration: 30,
+        score: 75,
+        reason: [
+          "Your recent revision activity is low",
+          "You have upcoming exams approaching"
+        ],
+        action: { type: 'START_STUDY', subjectId: null, duration: 30 }
       });
-    } else if (consistency.score === 100) {
-      // Positive reinforcement (low priority)
-      possibleRecommendations.push({
-        type: 'consistency',
-        score: 999, // Push to back
-        priority: 'low',
-        title: 'Excellent Consistency',
-        message: 'You are maintaining a great study rhythm. Keep it up!'
+    }
+
+    // RULE 6: Consistency
+    if (consistency && consistency.available && consistency.score < 60) {
+      candidates.push({
+        id: 'sys-consistency',
+        type: 'CONSISTENCY',
+        subjectId: null,
+        subject: "Study Routine",
+        title: "Build a more consistent routine",
+        duration: 25,
+        score: 65,
+        reason: ["Your recent study pattern is inconsistent"],
+        action: { type: 'START_STUDY', subjectId: null, duration: 25 }
       });
+    }
+
+    // RULE 7: Productivity / Focus
+    if (productivity && productivity.available && productivity.score < 60) {
+      candidates.push({
+        id: 'sys-focus',
+        type: 'FOCUS',
+        subjectId: null,
+        subject: "Focus Session",
+        title: "Try a focused Pomodoro session",
+        duration: 25,
+        score: 70,
+        reason: ["Your recent productivity score is low"],
+        action: { type: 'START_STUDY', subjectId: null, duration: 25 }
+      });
+    }
+
+    // RULE 8: Study Distribution
+    if (studyDistribution && studyDistribution.available && studyDistribution.score < 60) {
+      if (activeGoals.length > 1 || upcomingExams.length > 1) {
+        candidates.push({
+          id: 'sys-distribution',
+          type: 'STUDY_BALANCE',
+          subjectId: null,
+          subject: "Study Balance",
+          title: "Rebalance your study subjects",
+          duration: 30,
+          score: 65,
+          reason: [
+            "Your study time is heavily concentrated",
+            "You have multiple subjects with active priorities"
+          ],
+          action: { type: 'START_STUDY', subjectId: null, duration: 30 }
+        });
+      }
     }
   }
 
-  // Check Productivity
-  if (productivity.available && productivity.score !== null) {
-    if (productivity.score < 60) {
-      possibleRecommendations.push({
-        type: 'productivity',
-        score: productivity.score,
-        priority: productivity.score < 40 ? 'high' : 'medium',
-        title: 'Boost your focus quality',
-        message: 'Your perceived productivity is low. Try shorter Pomodoro blocks to maintain high energy.'
-      });
-    }
+  // RULE 9: Task Planning
+  if (incompleteTasks && incompleteTasks.length >= 3) {
+    let score = 50 + (incompleteTasks.length * 5);
+    candidates.push({
+      id: 'sys-tasks',
+      type: 'TASK_PLANNING',
+      subjectId: null,
+      subject: "Task Management",
+      title: "Focus on existing tasks",
+      duration: 30,
+      score: Math.min(85, score),
+      reason: [`You have ${incompleteTasks.length} high-priority tasks incomplete`],
+      action: { type: 'VIEW_TASK', subjectId: null, duration: 30 }
+    });
   }
 
-  // Check Goal Progress
-  if (goalProgress.available && goalProgress.score !== null) {
-    if (goalProgress.score < 50) {
-      possibleRecommendations.push({
-        type: 'goalProgress',
-        score: goalProgress.score,
-        priority: 'high',
-        title: 'Review your active goals',
-        message: 'You are falling behind on your goals. Consider breaking them into smaller, manageable tasks.'
-      });
-    }
-  }
+  return candidates;
+};
 
-  // Check Study Distribution
-  if (studyDistribution.available && studyDistribution.score !== null) {
-    if (studyDistribution.score < 60) {
-      possibleRecommendations.push({
-        type: 'studyDistribution',
-        score: studyDistribution.score,
-        priority: 'medium',
-        title: 'Rebalance your study subjects',
-        message: 'You are heavily concentrating on one subject. Ensure you are not neglecting other priorities.'
-      });
-    }
-  }
+/**
+ * Main export: Generates recommendations
+ */
+exports.generateRecommendations = async (userId, options = {}) => {
+  const limit = options.limit ? parseInt(options.limit) : 3;
+  const maxLimit = Math.max(1, Math.min(5, limit)); // cap between 1 and 5
 
-  // Check Revision Activity
-  if (revision.available && revision.score !== null) {
-    if (revision.score < 50) {
-      possibleRecommendations.push({
-        type: 'revision',
-        score: revision.score,
-        priority: 'medium',
-        title: 'Increase revision activity',
-        message: 'You are mostly learning new things. Add a few short review sessions each week to retain knowledge.'
-      });
-    } else if (revision.score === 80 && revision.revisionRate > 50) {
-      possibleRecommendations.push({
-        type: 'revision',
-        score: revision.score,
-        priority: 'low',
-        title: 'Balance revision with new learning',
-        message: 'You are spending a large majority of your time reviewing. Make sure you are also progressing on new topics.'
-      });
-    }
-  }
+  const context = await getRecommendationContext(userId, options);
+  const candidates = evaluateRules(context);
 
-  // Sort recommendations: lowest score first (to prioritize weakest areas)
-  possibleRecommendations.sort((a, b) => a.score - b.score);
-
-  // Return max 3 recommendations, omitting the 'score' field from final output
-  return possibleRecommendations.slice(0, 3).map(r => ({
-    type: r.type,
-    priority: r.priority,
-    title: r.title,
-    message: r.message
+  // Assign priority and format
+  const formattedCandidates = candidates.map(c => ({
+    ...c,
+    priority: getPriority(c.score)
   }));
+
+  // Sort by score descending
+  formattedCandidates.sort((a, b) => b.score - a.score);
+
+  // Deduplicate and group related signals. 
+  // (In our rule engine, we already suppressed Inactive if ExamPrep exists for the same subject).
+  // We just take top N.
+  return formattedCandidates.slice(0, maxLimit);
 };
