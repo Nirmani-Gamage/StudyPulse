@@ -24,6 +24,7 @@ const subjectRoutes = require("./routes/subjectRoutes");
 const studySessionRoutes = require("./routes/studySessionRoutes");
 const goalRoutes = require("./routes/goalRoutes");
 const calendarEventRoutes = require("./routes/calendarEventRoutes");
+const dailyTaskRoutes = require("./routes/dailyTaskRoutes");
 
 app.use("/api/auth", authRoutes);
 app.use("/api/user", userRoutes);
@@ -31,6 +32,7 @@ app.use("/api/subjects", subjectRoutes);
 app.use("/api/sessions", studySessionRoutes);
 app.use("/api/goals", goalRoutes);
 app.use("/api/events", calendarEventRoutes);
+app.use("/api/daily-tasks", dailyTaskRoutes);
 
 // Test route
 app.get("/", (req, res) => {

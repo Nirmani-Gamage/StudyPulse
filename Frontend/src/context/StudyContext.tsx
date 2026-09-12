@@ -1,13 +1,14 @@
 import { createContext, useContext, useEffect, useState, useCallback } from 'react';
 import { api } from '../lib/api';
 import { useAuth } from './AuthContext';
-import type { Subject, Goal, StudySession, CalendarEvent } from '../types';
+import type { Subject, Goal, StudySession, CalendarEvent, DailyTask } from '../types';
 
 interface StudyState {
   subjects: Subject[];
   goals: Goal[];
   sessions: StudySession[];
   events: CalendarEvent[];
+  dailyTasks: DailyTask[];
   
   error: string | null;
   refreshData: () => Promise<void>;
@@ -28,6 +29,11 @@ interface StudyState {
   updateEvent: (id: string, updates: Partial<Omit<CalendarEvent, 'id' | 'createdAt' | 'userId'>>) => Promise<void>;
   deleteEvent: (id: string) => Promise<void>;
   
+  addDailyTask: (task: Omit<DailyTask, 'id' | 'createdAt' | 'completed' | 'completedAt'>) => Promise<DailyTask | undefined>;
+  updateDailyTask: (id: string, updates: Partial<Omit<DailyTask, 'id' | 'createdAt' | 'completed' | 'completedAt'>>) => Promise<void>;
+  toggleDailyTask: (id: string) => Promise<void>;
+  deleteDailyTask: (id: string) => Promise<void>;
+
   isLoading: boolean;
   resetData: () => void;
 }
@@ -37,6 +43,7 @@ const initialState: StudyState = {
   goals: [],
   sessions: [],
   events: [],
+  dailyTasks: [],
   error: null,
   refreshData: async () => {},
   addSubject: async () => undefined,
@@ -52,6 +59,10 @@ const initialState: StudyState = {
   addEvent: async () => {},
   updateEvent: async () => {},
   deleteEvent: async () => {},
+  addDailyTask: async () => undefined,
+  updateDailyTask: async () => {},
+  toggleDailyTask: async () => {},
+  deleteDailyTask: async () => {},
   isLoading: false,
   resetData: () => {},
 };
@@ -63,6 +74,7 @@ export function StudyProvider({ children }: { children: React.ReactNode }) {
   const [goals, setGoals] = useState<Goal[]>([]);
   const [sessions, setSessions] = useState<StudySession[]>([]);
   const [events, setEvents] = useState<CalendarEvent[]>([]);
+  const [dailyTasks, setDailyTasks] = useState<DailyTask[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -78,7 +90,8 @@ export function StudyProvider({ children }: { children: React.ReactNode }) {
         api.get('/subjects'),
         api.get('/goals'),
         api.get('/sessions'),
-        api.get('/events')
+        api.get('/events'),
+        api.get('/daily-tasks')
       ]);
 
       let hasError = false;
@@ -93,6 +106,9 @@ export function StudyProvider({ children }: { children: React.ReactNode }) {
       else hasError = true;
 
       if (results[3].status === 'fulfilled') setEvents(results[3].value.calendarEvents || []);
+      else hasError = true;
+
+      if (results[4].status === 'fulfilled') setDailyTasks(results[4].value.tasks || []);
       else hasError = true;
 
       if (hasError) {
@@ -124,6 +140,7 @@ export function StudyProvider({ children }: { children: React.ReactNode }) {
     setGoals([]);
     setSessions([]);
     setEvents([]);
+    setDailyTasks([]);
     setError(null);
   };
 
@@ -223,14 +240,46 @@ export function StudyProvider({ children }: { children: React.ReactNode }) {
     setEvents(prev => prev.filter(e => e.id !== id));
   };
 
+  const addDailyTask = async (task: Omit<DailyTask, 'id' | 'createdAt' | 'completed' | 'completedAt'>) => {
+    setError(null);
+    const data = await api.post('/daily-tasks', task);
+    if (data.task) {
+      setDailyTasks(prev => [...prev, data.task]);
+      return data.task;
+    }
+  };
+
+  const updateDailyTask = async (id: string, updates: Partial<Omit<DailyTask, 'id' | 'createdAt' | 'completed' | 'completedAt'>>) => {
+    setError(null);
+    const data = await api.put(`/daily-tasks/${id}`, updates);
+    if (data.task) {
+      setDailyTasks(prev => prev.map(t => t.id === id ? data.task : t));
+    }
+  };
+
+  const toggleDailyTask = async (id: string) => {
+    setError(null);
+    const data = await api.patch(`/daily-tasks/${id}/toggle`, {});
+    if (data.task) {
+      setDailyTasks(prev => prev.map(t => t.id === id ? data.task : t));
+    }
+  };
+
+  const deleteDailyTask = async (id: string) => {
+    setError(null);
+    await api.delete(`/daily-tasks/${id}`);
+    setDailyTasks(prev => prev.filter(t => t.id !== id));
+  };
+
   return (
     <StudyContext.Provider value={{
-      subjects, goals, sessions, events,
+      subjects, goals, sessions, events, dailyTasks,
       error, refreshData,
       addSubject, updateSubject, deleteSubject,
       addGoal, updateGoal, updateGoalProgress, deleteGoal,
       addSession, updateSession, deleteSession,
       addEvent, updateEvent, deleteEvent,
+      addDailyTask, updateDailyTask, toggleDailyTask, deleteDailyTask,
       isLoading, resetData
     }}>
       {children}
@@ -239,3 +288,4 @@ export function StudyProvider({ children }: { children: React.ReactNode }) {
 }
 
 export const useStudyData = () => useContext(StudyContext);
+

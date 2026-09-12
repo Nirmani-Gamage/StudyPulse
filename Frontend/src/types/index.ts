@@ -35,3 +35,17 @@ export interface CalendarEvent {
   subjectId?: string;
   createdAt: string;
 }
+
+export interface DailyTask {
+  id: string;
+  title: string;
+  description?: string;
+  subjectId?: string;
+  date: string; // YYYY-MM-DD
+  priority: 'low' | 'medium' | 'high';
+  completed: boolean;
+  completedAt?: string | null;
+  estimatedMinutes?: number;
+  source: 'manual' | 'goal' | 'ai' | 'exam';
+  createdAt: string;
+}

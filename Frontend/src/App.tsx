@@ -9,6 +9,7 @@ import Register from './pages/auth/Register';
 import Dashboard from './pages/dashboard/Dashboard';
 import LandingPage from './pages/LandingPage';
 // Phase 3 placeholders
+import DailyTasks from './pages/dashboard/DailyTasks';
 import StudySessions from './pages/dashboard/StudySessions';
 import Pomodoro from './pages/dashboard/Pomodoro';
 import Subjects from './pages/dashboard/Subjects';
@@ -57,6 +58,7 @@ function App() {
                 </ProtectedRoute>
               }>
                 <Route index element={<Dashboard />} />
+                <Route path="tasks" element={<DailyTasks />} />
                 <Route path="sessions" element={<StudySessions />} />
                 <Route path="pomodoro" element={<Pomodoro />} />
                 <Route path="subjects" element={<Subjects />} />

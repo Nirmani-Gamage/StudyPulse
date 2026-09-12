@@ -44,5 +44,6 @@ export const api = {
   get: (endpoint: string) => fetchApi(endpoint, { method: 'GET' }),
   post: (endpoint: string, body: any) => fetchApi(endpoint, { method: 'POST', body: JSON.stringify(body) }),
   put: (endpoint: string, body: any) => fetchApi(endpoint, { method: 'PUT', body: JSON.stringify(body) }),
+  patch: (endpoint: string, body?: any) => fetchApi(endpoint, { method: 'PATCH', body: body ? JSON.stringify(body) : undefined }),
   delete: (endpoint: string) => fetchApi(endpoint, { method: 'DELETE' }),
 };

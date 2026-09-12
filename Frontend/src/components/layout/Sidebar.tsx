@@ -1,6 +1,7 @@
 import { NavLink } from 'react-router-dom';
 import { 
   LayoutDashboard, 
+  CheckSquare,
   BookOpen, 
   Library, 
   Target, 
@@ -15,6 +16,7 @@ import { Button } from '../ui/Button';
 
 const navItems = [
   { name: 'Dashboard', icon: LayoutDashboard, path: '/dashboard' },
+  { name: 'Daily Tasks', icon: CheckSquare, path: '/dashboard/tasks' },
   { name: 'Study Sessions', icon: BookOpen, path: '/dashboard/sessions' },
   { name: 'Timer', icon: Timer, path: '/dashboard/pomodoro' },
   { name: 'Subjects', icon: Library, path: '/dashboard/subjects' },

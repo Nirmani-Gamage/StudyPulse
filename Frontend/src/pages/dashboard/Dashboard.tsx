@@ -1,7 +1,7 @@
 import { useMemo, useState, useEffect } from 'react';
 import { 
   Clock, Flame, Target, Calendar as CalendarIcon, 
-  Timer, BookOpen, Play, PlusCircle, Lightbulb, X, Square, ChevronRight, Pause
+  Timer, BookOpen, Play, PlusCircle, Lightbulb, X, Square, ChevronRight, Pause, CheckCircle
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
@@ -14,7 +14,7 @@ import { useAuth } from '../../context/AuthContext';
 
 export default function Dashboard() {
   const { user } = useAuth();
-  const { sessions, goals, events, subjects } = useStudyData();
+  const { sessions, goals, events, subjects, dailyTasks } = useStudyData();
   const { profile } = useProfile();
   const navigate = useNavigate();
   const [greeting, setGreeting] = useState('');
@@ -203,6 +203,7 @@ export default function Dashboard() {
     }
 
     const bestTimeInsight = getBestStudyTime(sessions);
+    const todayTasks = (dailyTasks || []).filter(t => t.date === todayStr);
 
     return {
       todayStudyTime,
@@ -217,9 +218,10 @@ export default function Dashboard() {
       goalsText: totalGoalsCount > 0 ? `${completedGoalsCount} of ${totalGoalsCount} goals completed` : 'No goals yet',
       nextDeadline,
       deadlineDays,
-      bestTimeInsight
+      bestTimeInsight,
+      todayTasks
     };
-  }, [sessions, goals, events]);
+  }, [sessions, goals, events, dailyTasks]);
 
   const containerVariants = {
     hidden: { opacity: 0 },
@@ -561,6 +563,48 @@ export default function Dashboard() {
                     <div className="p-4 border-t border-[var(--border-color)] mt-auto bg-[var(--bg-main)]/50 rounded-b-[calc(var(--radius-card)-1px)]">
                       <Link to="/dashboard/calendar" className="text-xs font-semibold text-[var(--color-primary)] hover:underline flex items-center justify-center gap-1">
                         View calendar <ChevronRight className="h-3 w-3" />
+                      </Link>
+                    </div>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </motion.div>
+
+          {/* Today's Tasks */}
+          <motion.div variants={itemVariants} className="flex-1 flex flex-col">
+            <Card className="flex-1 flex flex-col shadow-soft border-[var(--border-color)]">
+              <CardHeader className="pb-4 border-b border-[var(--border-color)]">
+                <CardTitle className="text-sm font-bold uppercase tracking-wider flex items-center gap-2 text-[var(--text-secondary)]">
+                  <CheckCircle className="h-4 w-4" /> Today's Tasks
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="p-0 flex-1 flex flex-col min-h-[250px]">
+                {stats.todayTasks.length === 0 ? (
+                  <div className="flex-1 flex flex-col items-center justify-center p-8 text-center">
+                    <div className="text-4xl mb-3">📝</div>
+                    <p className="text-sm font-bold text-[var(--text-primary)]">No tasks for today</p>
+                    <p className="text-xs text-[var(--text-secondary)] mt-1">Ready to plan your day?</p>
+                  </div>
+                ) : (
+                  <div className="flex flex-col h-full">
+                    <div className="flex-1 p-5 space-y-4">
+                      {stats.todayTasks.slice(0, 4).map(task => (
+                        <div key={task.id} className="flex items-start gap-3">
+                          <div className={`mt-0.5 shrink-0 ${task.completed ? 'text-[var(--color-success)]' : 'text-[var(--text-secondary)]'}`}>
+                            <CheckCircle className="h-4 w-4" />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className={`text-sm font-medium truncate ${task.completed ? 'text-[var(--text-secondary)] line-through' : 'text-[var(--text-primary)]'}`}>
+                              {task.title}
+                            </p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                    <div className="p-4 border-t border-[var(--border-color)] mt-auto bg-[var(--bg-main)]/50 rounded-b-[calc(var(--radius-card)-1px)]">
+                      <Link to="/dashboard/tasks" className="text-xs font-semibold text-[var(--color-primary)] hover:underline flex items-center justify-center gap-1">
+                        Manage daily tasks <ChevronRight className="h-3 w-3" />
                       </Link>
                     </div>
                   </div>
