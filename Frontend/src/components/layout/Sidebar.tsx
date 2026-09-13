@@ -9,13 +9,15 @@ import {
   Calendar, 
   Settings, 
   X,
-  Timer
+  Timer,
+  Brain
 } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { Button } from '../ui/Button';
 
 const navItems = [
   { name: 'Dashboard', icon: LayoutDashboard, path: '/dashboard' },
+  { name: 'AI Analyzer', icon: Brain, path: '/dashboard/ai-analyzer' },
   { name: 'Daily Tasks', icon: CheckSquare, path: '/dashboard/tasks' },
   { name: 'Study Sessions', icon: BookOpen, path: '/dashboard/sessions' },
   { name: 'Timer', icon: Timer, path: '/dashboard/pomodoro' },

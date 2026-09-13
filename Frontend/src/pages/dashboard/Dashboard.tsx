@@ -12,7 +12,7 @@ import { getBestStudyTime } from '../../lib/insights';
 import { useProfile } from '../../hooks/useProfile';
 import { useAuth } from '../../context/AuthContext';
 import { DashboardRecommendations } from '../../components/recommendations/DashboardRecommendations';
-import { AIDailyPlanner } from '../../components/ai-planner/AIDailyPlanner';
+// import { AIDailyPlanner } from '../../components/ai-planner/AIDailyPlanner';
 
 export default function Dashboard() {
   const { user } = useAuth();
@@ -22,6 +22,7 @@ export default function Dashboard() {
   const [greeting, setGreeting] = useState('');
   const [currentDate, setCurrentDate] = useState('');
   
+  const [mainTab, setMainTab] = useState<'plan' | 'insights' | 'overview'>('plan');
   const [activeTab, setActiveTab] = useState<'activity' | 'goals'>('activity');
   const [showInsight, setShowInsight] = useState(true);
 
@@ -250,7 +251,7 @@ export default function Dashboard() {
         <div className="flex flex-col gap-1">
           <p className="text-sm font-medium text-[var(--text-secondary)] uppercase tracking-wider">{currentDate}</p>
           <h1 className="text-3xl sm:text-4xl font-bold text-[var(--text-primary)] tracking-tight">
-            {greeting}, {user?.name || profile.name || 'Student'} <span className="inline-block origin-bottom-right hover:animate-wave">👋</span>
+            {greeting}, {(user?.name || profile.name || 'Student').split(' ')[0]}
           </h1>
           <p className="text-[var(--text-secondary)] mt-1 text-lg">Ready to make progress today?</p>
         </div>
@@ -275,357 +276,407 @@ export default function Dashboard() {
         </div>
       </motion.div>
 
-      {/* AI DAILY PLANNER */}
-      <motion.div variants={itemVariants}>
-        <AIDailyPlanner />
-      </motion.div>
-
-      {/* SMART RECOMMENDATIONS */}
-      <motion.div variants={itemVariants}>
-        <DashboardRecommendations />
-      </motion.div>
-
-      {/* MAIN CONTENT + SMART SIDEBAR LAYOUT */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-        
-        {/* MAIN CONTENT (~65%) */}
-        <div className="lg:col-span-8 flex flex-col gap-8">
-          
-          {/* KPI Cards */}
-          <motion.div variants={itemVariants} className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <Card className="p-5 flex flex-col justify-between hover:shadow-md transition-shadow">
-               <div className="flex items-center gap-3 mb-3">
-                 <div className="p-1.5 rounded-lg bg-[var(--color-primary)]/10 text-[var(--color-primary)]">
-                   <Clock className="h-4 w-4" />
-                 </div>
-                 <p className="text-xs font-semibold text-[var(--text-secondary)] uppercase tracking-wider">Study Time</p>
-               </div>
-               <div>
-                 <h3 className="text-2xl font-bold text-[var(--text-primary)] leading-tight">{stats.todayStudyTime}</h3>
-                 <p className="text-xs text-[var(--text-secondary)] mt-1 truncate" title={stats.diffText}>{stats.diffText}</p>
-               </div>
-            </Card>
-
-            <Card className="p-5 flex flex-col justify-between hover:shadow-md transition-shadow">
-               <div className="flex items-center gap-3 mb-3">
-                 <div className="p-1.5 rounded-lg bg-[var(--color-warning)]/10 text-[var(--color-warning)]">
-                   <Flame className="h-4 w-4" />
-                 </div>
-                 <p className="text-xs font-semibold text-[var(--text-secondary)] uppercase tracking-wider">Streak</p>
-               </div>
-               <div>
-                 <h3 className="text-2xl font-bold text-[var(--text-primary)] leading-tight">{stats.studyStreak} <span className="text-sm font-medium text-[var(--text-secondary)]">days</span></h3>
-                 <p className="text-xs text-[var(--text-secondary)] mt-1">Keep it going!</p>
-               </div>
-            </Card>
-
-            <Card className="p-5 flex flex-col justify-between hover:shadow-md transition-shadow">
-               <div className="flex items-center gap-3 mb-3">
-                 <div className="p-1.5 rounded-lg bg-[var(--color-success)]/10 text-[var(--color-success)]">
-                   <Target className="h-4 w-4" />
-                 </div>
-                 <p className="text-xs font-semibold text-[var(--text-secondary)] uppercase tracking-wider">Goals</p>
-               </div>
-               <div>
-                 <h3 className="text-2xl font-bold text-[var(--text-primary)] leading-tight">{stats.goalsProgress}%</h3>
-                 <p className="text-xs text-[var(--text-secondary)] mt-1 truncate" title={stats.goalsText}>{stats.goalsText}</p>
-               </div>
-            </Card>
-          </motion.div>
-
-          {/* Learning Insight Banner */}
-          <AnimatePresence>
-            {showInsight && stats.bestTimeInsight.value !== 'Not enough data' && (
-              <motion.div 
-                variants={itemVariants} 
-                initial={{ opacity: 0, height: 0 }}
-                animate={{ opacity: 1, height: 'auto' }}
-                exit={{ opacity: 0, height: 0, overflow: 'hidden' }}
-              >
-                <div className="flex items-center justify-between p-4 rounded-[var(--radius-card)] bg-gradient-to-r from-[var(--color-primary)]/10 to-[var(--color-primary)]/5 border border-[var(--color-primary)]/20 shadow-sm">
-                  <div className="flex items-center gap-4">
-                    <div className="h-10 w-10 rounded-full bg-[var(--color-primary)]/20 flex items-center justify-center shrink-0">
-                      <Lightbulb className="h-5 w-5 text-[var(--color-primary)]" />
-                    </div>
-                    <div>
-                      <h4 className="text-sm font-bold text-[var(--text-primary)]">Learning Insight</h4>
-                      <p className="text-sm text-[var(--text-secondary)] mt-0.5">{stats.bestTimeInsight.value}. {stats.bestTimeInsight.description}</p>
-                    </div>
-                  </div>
-                  <button onClick={() => setShowInsight(false)} className="h-8 w-8 rounded-full hover:bg-[var(--bg-main)] flex items-center justify-center text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors shrink-0">
-                    <X className="h-4 w-4" />
-                  </button>
-                </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
-
-          {/* Tabbed Widget: Activity & Goals */}
-          <motion.div variants={itemVariants} className="flex-1">
-            <Card className="h-full flex flex-col shadow-soft border-[var(--border-color)]">
-              <div className="flex border-b border-[var(--border-color)] px-2 pt-2 bg-[var(--bg-main)]/50 rounded-t-[calc(var(--radius-card)-1px)]" role="tablist">
-                <button 
-                  className={`flex-1 py-3 px-4 text-sm font-bold transition-all relative ${activeTab === 'activity' ? 'text-[var(--color-primary)]' : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'}`}
-                  onClick={() => setActiveTab('activity')}
-                  role="tab"
-                  aria-selected={activeTab === 'activity'}
-                >
-                  Activity
-                  {activeTab === 'activity' && (
-                    <motion.div layoutId="tabIndicator" className="absolute bottom-0 left-0 right-0 h-0.5 bg-[var(--color-primary)]" />
-                  )}
-                </button>
-                <button 
-                  className={`flex-1 py-3 px-4 text-sm font-bold transition-all relative ${activeTab === 'goals' ? 'text-[var(--color-primary)]' : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'}`}
-                  onClick={() => setActiveTab('goals')}
-                  role="tab"
-                  aria-selected={activeTab === 'goals'}
-                >
-                  Goals
-                  {activeTab === 'goals' && (
-                    <motion.div layoutId="tabIndicator" className="absolute bottom-0 left-0 right-0 h-0.5 bg-[var(--color-primary)]" />
-                  )}
-                </button>
+      {/* KPI Cards (Always Visible) */}
+      <motion.div variants={itemVariants} className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <Card className="p-5 flex flex-col justify-between hover:shadow-md transition-shadow">
+            <div className="flex items-center gap-3 mb-3">
+              <div className="p-1.5 rounded-lg bg-[var(--color-primary)]/10 text-[var(--color-primary)]">
+                <Clock className="h-4 w-4" />
               </div>
-              
-              <CardContent className="p-0 flex-1 relative min-h-[350px]">
-                {activeTab === 'activity' ? (
-                  <motion.div 
-                    key="activity"
-                    initial={{ opacity: 0, x: -10 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ duration: 0.2 }}
-                    className="flex flex-col h-full absolute inset-0"
-                  >
-                    {stats.recentSessions.length === 0 ? (
-                      <div className="flex-1 flex flex-col items-center justify-center p-8 text-center">
-                        <div className="h-12 w-12 rounded-full bg-[var(--border-color)]/30 flex items-center justify-center mb-3">
-                          <BookOpen className="h-6 w-6 text-[var(--text-secondary)]" />
-                        </div>
-                        <p className="text-[var(--text-primary)] font-medium mb-1">No study sessions yet</p>
-                        <Link to="/dashboard/sessions" className="text-sm text-[var(--color-primary)] hover:underline">Start your first study session &rarr;</Link>
-                      </div>
-                    ) : (
-                      <div className="flex flex-col h-full">
-                        <div className="flex-1 overflow-y-auto p-5 space-y-4">
-                          {stats.recentSessions.map(session => {
-                            const sub = subjects.find(s => s.id === session.subjectId);
-                            return (
-                              <div key={session.id} className="flex items-center justify-between p-4 rounded-[var(--radius-base)] bg-[var(--bg-main)] border border-[var(--border-color)] hover:border-[var(--color-primary)]/50 transition-colors">
-                                <div className="flex items-center gap-4">
-                                  <div className="h-10 w-10 rounded-full flex items-center justify-center shrink-0" style={{ backgroundColor: `${sub?.color || '#3B82F6'}15`, color: sub?.color || '#3B82F6' }}>
-                                    <BookOpen className="h-5 w-5" />
-                                  </div>
-                                  <div>
-                                    <p className="text-sm font-bold text-[var(--text-primary)]">{sub?.name || 'Unknown'}</p>
-                                    <p className="text-xs text-[var(--text-secondary)] mt-0.5">
-                                      {new Date(session.startTime).toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}
-                                    </p>
-                                  </div>
-                                </div>
-                                <div className="text-sm font-bold bg-[var(--bg-color)] px-3 py-1 rounded-full border border-[var(--border-color)] text-[var(--text-primary)] shrink-0">
-                                  {session.durationMinutes}m
-                                </div>
-                              </div>
-                            );
-                          })}
-                        </div>
-                        <div className="p-4 border-t border-[var(--border-color)] mt-auto bg-[var(--bg-main)]/50 rounded-b-[calc(var(--radius-card)-1px)]">
-                          <Link to="/dashboard/sessions">
-                            <Button variant="ghost" className="w-full text-[var(--color-primary)] hover:text-[var(--color-primary)] hover:bg-[var(--color-primary)]/5 font-medium gap-2">
-                              View all activity <ChevronRight className="h-4 w-4" />
-                            </Button>
-                          </Link>
-                        </div>
-                      </div>
-                    )}
-                  </motion.div>
-                ) : (
-                  <motion.div 
-                    key="goals"
-                    initial={{ opacity: 0, x: 10 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ duration: 0.2 }}
-                    className="flex flex-col h-full absolute inset-0"
-                  >
-                    {stats.activeGoals.length === 0 ? (
-                      <div className="flex-1 flex flex-col items-center justify-center p-8 text-center">
-                        <div className="h-12 w-12 rounded-full bg-[var(--border-color)]/30 flex items-center justify-center mb-3">
-                          <Target className="h-6 w-6 text-[var(--text-secondary)]" />
-                        </div>
-                        <p className="text-[var(--text-primary)] font-medium mb-1">No active goals</p>
-                        <Link to="/dashboard/goals" className="text-sm text-[var(--color-primary)] hover:underline">Create your first goal &rarr;</Link>
-                      </div>
-                    ) : (
-                      <div className="flex flex-col h-full">
-                        <div className="flex-1 overflow-y-auto p-5 space-y-4">
-                          {stats.activeGoals.map(goal => {
-                            const progress = goal.targetHours > 0 ? Math.min(100, Math.round((goal.completedHours / goal.targetHours) * 100)) : 0;
-                            const sub = subjects.find(s => s.id === goal.subjectId);
-                            return (
-                              <div key={goal.id} className="p-4 rounded-[var(--radius-base)] bg-[var(--bg-main)] border border-[var(--border-color)] hover:border-[var(--color-primary)]/50 transition-colors space-y-3">
-                                <div className="flex justify-between items-start gap-4">
-                                  <div>
-                                    <p className="text-sm font-bold text-[var(--text-primary)] line-clamp-1">{goal.title}</p>
-                                    <p className="text-xs text-[var(--text-secondary)] mt-0.5">{sub?.name || 'General Goal'}</p>
-                                  </div>
-                                  <div className="text-sm font-bold text-[var(--color-primary)] shrink-0">{progress}%</div>
-                                </div>
-                                <div className="h-2 w-full bg-[var(--border-color)]/50 rounded-full overflow-hidden">
-                                  <div className="h-full bg-[var(--color-success)] rounded-full transition-all duration-1000 ease-out" style={{ width: `${progress}%` }}></div>
-                                </div>
-                              </div>
-                            );
-                          })}
-                        </div>
-                        <div className="p-4 border-t border-[var(--border-color)] mt-auto bg-[var(--bg-main)]/50 rounded-b-[calc(var(--radius-card)-1px)]">
-                          <Link to="/dashboard/goals">
-                            <Button variant="ghost" className="w-full text-[var(--color-primary)] hover:text-[var(--color-primary)] hover:bg-[var(--color-primary)]/5 font-medium gap-2">
-                              View all goals <ChevronRight className="h-4 w-4" />
-                            </Button>
-                          </Link>
-                        </div>
-                      </div>
-                    )}
-                  </motion.div>
-                )}
-              </CardContent>
-            </Card>
-          </motion.div>
-        </div>
+              <p className="text-xs font-semibold text-[var(--text-secondary)] uppercase tracking-wider">Study Time</p>
+            </div>
+            <div>
+              <h3 className="text-2xl font-bold text-[var(--text-primary)] leading-tight">{stats.todayStudyTime}</h3>
+              <p className="text-xs text-[var(--text-secondary)] mt-1 truncate" title={stats.diffText}>{stats.diffText}</p>
+            </div>
+        </Card>
 
-        {/* SMART SIDEBAR (~35%) */}
-        <div className="lg:col-span-4 flex flex-col gap-8">
+        <Card className="p-5 flex flex-col justify-between hover:shadow-md transition-shadow">
+            <div className="flex items-center gap-3 mb-3">
+              <div className="p-1.5 rounded-lg bg-[var(--color-warning)]/10 text-[var(--color-warning)]">
+                <Flame className="h-4 w-4" />
+              </div>
+              <p className="text-xs font-semibold text-[var(--text-secondary)] uppercase tracking-wider">Streak</p>
+            </div>
+            <div>
+              <h3 className="text-2xl font-bold text-[var(--text-primary)] leading-tight">{stats.studyStreak} <span className="text-sm font-medium text-[var(--text-secondary)]">days</span></h3>
+              <p className="text-xs text-[var(--text-secondary)] mt-1">Keep it going!</p>
+            </div>
+        </Card>
+
+        <Card className="p-5 flex flex-col justify-between hover:shadow-md transition-shadow">
+            <div className="flex items-center gap-3 mb-3">
+              <div className="p-1.5 rounded-lg bg-[var(--color-success)]/10 text-[var(--color-success)]">
+                <Target className="h-4 w-4" />
+              </div>
+              <p className="text-xs font-semibold text-[var(--text-secondary)] uppercase tracking-wider">Goals</p>
+            </div>
+            <div>
+              <h3 className="text-2xl font-bold text-[var(--text-primary)] leading-tight">{stats.goalsProgress}%</h3>
+              <p className="text-xs text-[var(--text-secondary)] mt-1 truncate" title={stats.goalsText}>{stats.goalsText}</p>
+            </div>
+        </Card>
+      </motion.div>
+
+      {/* MAIN TABS NAVIGATION */}
+      <motion.div variants={itemVariants} className="flex border-b border-[var(--border-color)] overflow-x-auto hide-scrollbar pt-2">
+        <button 
+          className={`px-6 py-3 font-bold text-sm whitespace-nowrap transition-colors relative flex-1 sm:flex-none ${mainTab === 'plan' ? 'text-[var(--color-primary)]' : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'}`}
+          onClick={() => setMainTab('plan')}
+        >
+          <span className="flex items-center justify-center gap-2"><CheckCircle className="h-4 w-4"/> Today's Plan</span>
+          {mainTab === 'plan' && <motion.div layoutId="mainTabIndicator" className="absolute bottom-0 left-0 right-0 h-0.5 bg-[var(--color-primary)]" />}
+        </button>
+        <button 
+          className={`px-6 py-3 font-bold text-sm whitespace-nowrap transition-colors relative flex-1 sm:flex-none ${mainTab === 'insights' ? 'text-[var(--color-primary)]' : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'}`}
+          onClick={() => setMainTab('insights')}
+        >
+          <span className="flex items-center justify-center gap-2"><Lightbulb className="h-4 w-4"/> Smart Insights</span>
+          {mainTab === 'insights' && <motion.div layoutId="mainTabIndicator" className="absolute bottom-0 left-0 right-0 h-0.5 bg-[var(--color-primary)]" />}
+        </button>
+        <button 
+          className={`px-6 py-3 font-bold text-sm whitespace-nowrap transition-colors relative flex-1 sm:flex-none ${mainTab === 'overview' ? 'text-[var(--color-primary)]' : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'}`}
+          onClick={() => setMainTab('overview')}
+        >
+          <span className="flex items-center justify-center gap-2"><BookOpen className="h-4 w-4"/> Overview & Activity</span>
+          {mainTab === 'overview' && <motion.div layoutId="mainTabIndicator" className="absolute bottom-0 left-0 right-0 h-0.5 bg-[var(--color-primary)]" />}
+        </button>
+      </motion.div>
+
+      {/* TAB CONTENT AREAS */}
+      <div className="relative min-h-[400px]">
+        <AnimatePresence mode="wait">
           
-          {/* Mini Study Timer */}
-          <motion.div variants={itemVariants}>
-            <Card className="border-[var(--color-primary)]/20 shadow-md relative overflow-hidden group">
-              <div className="absolute top-0 right-0 w-32 h-32 bg-[var(--color-primary)]/5 rounded-bl-full -z-10 group-hover:scale-110 transition-transform"></div>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-bold uppercase tracking-wider flex items-center gap-2 text-[var(--text-secondary)]">
-                  <Timer className="h-4 w-4" /> Focus Timer
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="flex flex-col items-center pt-2 pb-6">
-                <div className="text-6xl font-extrabold tracking-tighter tabular-nums mb-6 text-[var(--text-primary)]">
-                  {formatTime(timeLeft)}
-                </div>
-                <div className="flex w-full gap-3 mb-6">
-                  <Button 
-                    onClick={toggleMiniTimer} 
-                    className={`flex-1 h-12 text-sm font-bold shadow-sm transition-all ${isTimerActive ? 'bg-[var(--color-warning)] hover:bg-[var(--color-warning)]/90 text-white' : 'bg-[var(--color-primary)] hover:bg-[var(--color-primary)]/90 text-white'}`}
-                  >
-                    {isTimerActive ? <Pause className="h-4 w-4 mr-2" /> : <Play className="h-4 w-4 mr-2" />}
-                    {isTimerActive ? 'Pause' : 'Start Focus'}
-                  </Button>
-                  <Button 
-                    onClick={resetMiniTimer} 
-                    variant="outline" 
-                    className="h-12 w-12 shrink-0 border-[var(--border-color)] hover:bg-[var(--color-error)]/10 hover:text-[var(--color-error)] hover:border-[var(--color-error)]/30 transition-colors"
-                    title="Reset Timer"
-                  >
-                    <Square className="h-4 w-4" />
-                  </Button>
-                </div>
-                <Link to="/dashboard/pomodoro" className="text-xs font-semibold text-[var(--text-secondary)] hover:text-[var(--color-primary)] flex items-center gap-1 transition-colors">
-                  Open full timer <ChevronRight className="h-3 w-3" />
-                </Link>
-              </CardContent>
-            </Card>
-          </motion.div>
-
-          {/* Upcoming Deadlines */}
-          <motion.div variants={itemVariants} className="flex-1 flex flex-col">
-            <Card className="flex-1 flex flex-col shadow-soft border-[var(--border-color)]">
-              <CardHeader className="pb-4 border-b border-[var(--border-color)]">
-                <CardTitle className="text-sm font-bold uppercase tracking-wider flex items-center gap-2 text-[var(--text-secondary)]">
-                  <CalendarIcon className="h-4 w-4" /> Upcoming
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="p-0 flex-1 flex flex-col min-h-[250px]">
-                {stats.upcomingEvents.length === 0 ? (
-                  <div className="flex-1 flex flex-col items-center justify-center p-8 text-center">
-                    <div className="text-4xl mb-3">🎉</div>
-                    <p className="text-sm font-bold text-[var(--text-primary)]">No upcoming deadlines</p>
-                    <p className="text-xs text-[var(--text-secondary)] mt-1">You're all caught up!</p>
-                  </div>
-                ) : (
-                  <div className="flex flex-col h-full">
-                    <div className="flex-1 p-5 space-y-4">
-                      {stats.upcomingEvents.map(event => {
-                        const eventDate = new Date(event.date);
-                        const isUrgent = (eventDate.getTime() - new Date().getTime()) / (1000 * 3600 * 24) <= 3;
-                        
-                        return (
-                          <div key={event.id} className="flex items-start gap-4">
-                            <div className={`h-10 w-10 rounded-full flex items-center justify-center shrink-0 ${isUrgent ? 'bg-[var(--color-error)]/10 text-[var(--color-error)]' : 'bg-[var(--bg-main)] text-[var(--color-primary)]'}`}>
-                              <CalendarIcon className="h-4 w-4" />
+          {/* TAB: TODAY'S PLAN */}
+          {mainTab === 'plan' && (
+            <motion.div 
+              key="plan" 
+              initial={{ opacity: 0, y: 10 }} 
+              animate={{ opacity: 1, y: 0 }} 
+              exit={{ opacity: 0, y: -10 }} 
+              transition={{ duration: 0.2 }} 
+              className="grid grid-cols-1 xl:grid-cols-12 gap-8 absolute inset-0 w-full"
+            >
+              <div className="xl:col-span-8 flex flex-col gap-8 h-full">
+                {/* Today's Tasks */}
+                <Card className="flex-1 flex flex-col shadow-soft border-[var(--border-color)]">
+                  <CardHeader className="pb-4 border-b border-[var(--border-color)]">
+                    <CardTitle className="text-sm font-bold uppercase tracking-wider flex items-center gap-2 text-[var(--text-secondary)]">
+                      <CheckCircle className="h-4 w-4" /> Today's Tasks List
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="p-0 flex-1 flex flex-col">
+                    {stats.todayTasks.length === 0 ? (
+                      <div className="flex-1 flex flex-col items-center justify-center p-8 text-center min-h-[150px]">
+                        <div className="text-4xl mb-3">📝</div>
+                        <p className="text-sm font-bold text-[var(--text-primary)]">No tasks for today</p>
+                        <p className="text-xs text-[var(--text-secondary)] mt-1">Ready to plan your day?</p>
+                      </div>
+                    ) : (
+                      <div className="flex flex-col h-full">
+                        <div className="flex-1 p-5 space-y-4">
+                          {stats.todayTasks.slice(0, 6).map(task => (
+                            <div key={task.id} className="flex items-start gap-3 p-3 rounded-lg border border-[var(--border-color)] bg-[var(--bg-main)]">
+                              <div className={`mt-0.5 shrink-0 ${task.completed ? 'text-[var(--color-success)]' : 'text-[var(--text-secondary)]'}`}>
+                                <CheckCircle className="h-4 w-4" />
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <p className={`text-sm font-bold truncate ${task.completed ? 'text-[var(--text-secondary)] line-through' : 'text-[var(--text-primary)]'}`}>
+                                  {task.title}
+                                </p>
+                                {task.description && (
+                                  <p className="text-xs text-[var(--text-secondary)] mt-1 truncate">{task.description}</p>
+                                )}
+                              </div>
                             </div>
-                            <div className="flex-1 min-w-0 pt-0.5">
-                              <p className="text-sm font-bold text-[var(--text-primary)] truncate">{event.title}</p>
-                              <p className={`text-xs font-medium mt-0.5 ${isUrgent ? 'text-[var(--color-error)]' : 'text-[var(--text-secondary)]'}`}>
-                                {eventDate.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
-                                {isUrgent && ' (Soon)'}
-                              </p>
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                    <div className="p-4 border-t border-[var(--border-color)] mt-auto bg-[var(--bg-main)]/50 rounded-b-[calc(var(--radius-card)-1px)]">
-                      <Link to="/dashboard/calendar" className="text-xs font-semibold text-[var(--color-primary)] hover:underline flex items-center justify-center gap-1">
-                        View calendar <ChevronRight className="h-3 w-3" />
-                      </Link>
-                    </div>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          </motion.div>
-
-          {/* Today's Tasks */}
-          <motion.div variants={itemVariants} className="flex-1 flex flex-col">
-            <Card className="flex-1 flex flex-col shadow-soft border-[var(--border-color)]">
-              <CardHeader className="pb-4 border-b border-[var(--border-color)]">
-                <CardTitle className="text-sm font-bold uppercase tracking-wider flex items-center gap-2 text-[var(--text-secondary)]">
-                  <CheckCircle className="h-4 w-4" /> Today's Tasks
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="p-0 flex-1 flex flex-col min-h-[250px]">
-                {stats.todayTasks.length === 0 ? (
-                  <div className="flex-1 flex flex-col items-center justify-center p-8 text-center">
-                    <div className="text-4xl mb-3">📝</div>
-                    <p className="text-sm font-bold text-[var(--text-primary)]">No tasks for today</p>
-                    <p className="text-xs text-[var(--text-secondary)] mt-1">Ready to plan your day?</p>
-                  </div>
-                ) : (
-                  <div className="flex flex-col h-full">
-                    <div className="flex-1 p-5 space-y-4">
-                      {stats.todayTasks.slice(0, 4).map(task => (
-                        <div key={task.id} className="flex items-start gap-3">
-                          <div className={`mt-0.5 shrink-0 ${task.completed ? 'text-[var(--color-success)]' : 'text-[var(--text-secondary)]'}`}>
-                            <CheckCircle className="h-4 w-4" />
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <p className={`text-sm font-medium truncate ${task.completed ? 'text-[var(--text-secondary)] line-through' : 'text-[var(--text-primary)]'}`}>
-                              {task.title}
-                            </p>
-                          </div>
+                          ))}
                         </div>
-                      ))}
-                    </div>
-                    <div className="p-4 border-t border-[var(--border-color)] mt-auto bg-[var(--bg-main)]/50 rounded-b-[calc(var(--radius-card)-1px)]">
-                      <Link to="/dashboard/tasks" className="text-xs font-semibold text-[var(--color-primary)] hover:underline flex items-center justify-center gap-1">
-                        Manage daily tasks <ChevronRight className="h-3 w-3" />
-                      </Link>
-                    </div>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          </motion.div>
+                        <div className="p-4 border-t border-[var(--border-color)] mt-auto bg-[var(--bg-main)]/50 rounded-b-[calc(var(--radius-card)-1px)]">
+                          <Link to="/dashboard/tasks" className="text-xs font-semibold text-[var(--color-primary)] hover:underline flex items-center justify-center gap-1">
+                            Manage all daily tasks <ChevronRight className="h-3 w-3" />
+                          </Link>
+                        </div>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              </div>
 
-        </div>
+              <div className="xl:col-span-4 flex flex-col gap-8">
+                {/* Mini Study Timer */}
+                <Card className="border-[var(--color-primary)]/20 shadow-md relative overflow-hidden group">
+                  <div className="absolute top-0 right-0 w-32 h-32 bg-[var(--color-primary)]/5 rounded-bl-full -z-10 group-hover:scale-110 transition-transform"></div>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm font-bold uppercase tracking-wider flex items-center gap-2 text-[var(--text-secondary)]">
+                      <Timer className="h-4 w-4" /> Focus Timer
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="flex flex-col items-center pt-2 pb-6">
+                    <div className="text-6xl font-extrabold tracking-tighter tabular-nums mb-6 text-[var(--text-primary)]">
+                      {formatTime(timeLeft)}
+                    </div>
+                    <div className="flex w-full gap-3 mb-6">
+                      <Button 
+                        onClick={toggleMiniTimer} 
+                        className={`flex-1 h-12 text-sm font-bold shadow-sm transition-all ${isTimerActive ? 'bg-[var(--color-warning)] hover:bg-[var(--color-warning)]/90 text-white' : 'bg-[var(--color-primary)] hover:bg-[var(--color-primary)]/90 text-white'}`}
+                      >
+                        {isTimerActive ? <Pause className="h-4 w-4 mr-2" /> : <Play className="h-4 w-4 mr-2" />}
+                        {isTimerActive ? 'Pause' : 'Start Focus'}
+                      </Button>
+                      <Button 
+                        onClick={resetMiniTimer} 
+                        variant="outline" 
+                        className="h-12 w-12 shrink-0 border-[var(--border-color)] hover:bg-[var(--color-error)]/10 hover:text-[var(--color-error)] hover:border-[var(--color-error)]/30 transition-colors"
+                        title="Reset Timer"
+                      >
+                        <Square className="h-4 w-4" />
+                      </Button>
+                    </div>
+                    <Link to="/dashboard/pomodoro" className="text-xs font-semibold text-[var(--text-secondary)] hover:text-[var(--color-primary)] flex items-center gap-1 transition-colors">
+                      Open full timer <ChevronRight className="h-3 w-3" />
+                    </Link>
+                  </CardContent>
+                </Card>
+              </div>
+            </motion.div>
+          )}
+
+          {/* TAB: SMART INSIGHTS */}
+          {mainTab === 'insights' && (
+            <motion.div 
+              key="insights" 
+              initial={{ opacity: 0, y: 10 }} 
+              animate={{ opacity: 1, y: 0 }} 
+              exit={{ opacity: 0, y: -10 }} 
+              transition={{ duration: 0.2 }} 
+              className="flex flex-col gap-8 absolute inset-0 w-full"
+            >
+              {/* Learning Insight Banner */}
+              <AnimatePresence>
+                {showInsight && stats.bestTimeInsight.value !== 'Not enough data' && (
+                  <motion.div 
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: 'auto' }}
+                    exit={{ opacity: 0, height: 0, overflow: 'hidden' }}
+                  >
+                    <div className="flex items-center justify-between p-4 rounded-[var(--radius-card)] bg-gradient-to-r from-[var(--color-primary)]/10 to-[var(--color-primary)]/5 border border-[var(--color-primary)]/20 shadow-sm">
+                      <div className="flex items-center gap-4">
+                        <div className="h-10 w-10 rounded-full bg-[var(--color-primary)]/20 flex items-center justify-center shrink-0">
+                          <Lightbulb className="h-5 w-5 text-[var(--color-primary)]" />
+                        </div>
+                        <div>
+                          <h4 className="text-sm font-bold text-[var(--text-primary)]">Learning Insight</h4>
+                          <p className="text-sm text-[var(--text-secondary)] mt-0.5">{stats.bestTimeInsight.value}. {stats.bestTimeInsight.description}</p>
+                        </div>
+                      </div>
+                      <button onClick={() => setShowInsight(false)} className="h-8 w-8 rounded-full hover:bg-[var(--bg-main)] flex items-center justify-center text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors shrink-0">
+                        <X className="h-4 w-4" />
+                      </button>
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+
+              {/* Smart Recommendations */}
+              <DashboardRecommendations />
+            </motion.div>
+          )}
+
+          {/* TAB: OVERVIEW & ACTIVITY */}
+          {mainTab === 'overview' && (
+            <motion.div 
+              key="overview" 
+              initial={{ opacity: 0, y: 10 }} 
+              animate={{ opacity: 1, y: 0 }} 
+              exit={{ opacity: 0, y: -10 }} 
+              transition={{ duration: 0.2 }} 
+              className="grid grid-cols-1 xl:grid-cols-12 gap-8 absolute inset-0 w-full"
+            >
+              <div className="xl:col-span-7 flex flex-col h-full">
+                {/* Tabbed Widget: Activity & Goals */}
+                <Card className="flex-1 flex flex-col shadow-soft border-[var(--border-color)]">
+                  <div className="flex border-b border-[var(--border-color)] px-2 pt-2 bg-[var(--bg-main)]/50 rounded-t-[calc(var(--radius-card)-1px)]" role="tablist">
+                    <button 
+                      className={`flex-1 py-3 px-4 text-sm font-bold transition-all relative ${activeTab === 'activity' ? 'text-[var(--color-primary)]' : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'}`}
+                      onClick={() => setActiveTab('activity')}
+                      role="tab"
+                      aria-selected={activeTab === 'activity'}
+                    >
+                      Recent Activity
+                      {activeTab === 'activity' && (
+                        <motion.div layoutId="subTabIndicator" className="absolute bottom-0 left-0 right-0 h-0.5 bg-[var(--color-primary)]" />
+                      )}
+                    </button>
+                    <button 
+                      className={`flex-1 py-3 px-4 text-sm font-bold transition-all relative ${activeTab === 'goals' ? 'text-[var(--color-primary)]' : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'}`}
+                      onClick={() => setActiveTab('goals')}
+                      role="tab"
+                      aria-selected={activeTab === 'goals'}
+                    >
+                      Active Goals
+                      {activeTab === 'goals' && (
+                        <motion.div layoutId="subTabIndicator" className="absolute bottom-0 left-0 right-0 h-0.5 bg-[var(--color-primary)]" />
+                      )}
+                    </button>
+                  </div>
+                  
+                  <CardContent className="p-0 flex-1 relative min-h-[350px]">
+                    {activeTab === 'activity' ? (
+                      <motion.div 
+                        key="activity"
+                        initial={{ opacity: 0, x: -10 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        transition={{ duration: 0.2 }}
+                        className="flex flex-col h-full absolute inset-0"
+                      >
+                        {stats.recentSessions.length === 0 ? (
+                          <div className="flex-1 flex flex-col items-center justify-center p-8 text-center">
+                            <div className="h-12 w-12 rounded-full bg-[var(--border-color)]/30 flex items-center justify-center mb-3">
+                              <BookOpen className="h-6 w-6 text-[var(--text-secondary)]" />
+                            </div>
+                            <p className="text-[var(--text-primary)] font-medium mb-1">No study sessions yet</p>
+                            <Link to="/dashboard/sessions" className="text-sm text-[var(--color-primary)] hover:underline">Start your first study session &rarr;</Link>
+                          </div>
+                        ) : (
+                          <div className="flex flex-col h-full">
+                            <div className="flex-1 overflow-y-auto p-5 space-y-4">
+                              {stats.recentSessions.map(session => {
+                                const sub = subjects.find(s => s.id === session.subjectId);
+                                return (
+                                  <div key={session.id} className="flex items-center justify-between p-4 rounded-[var(--radius-base)] bg-[var(--bg-main)] border border-[var(--border-color)] hover:border-[var(--color-primary)]/50 transition-colors">
+                                    <div className="flex items-center gap-4">
+                                      <div className="h-10 w-10 rounded-full flex items-center justify-center shrink-0" style={{ backgroundColor: `${sub?.color || '#3B82F6'}15`, color: sub?.color || '#3B82F6' }}>
+                                        <BookOpen className="h-5 w-5" />
+                                      </div>
+                                      <div>
+                                        <p className="text-sm font-bold text-[var(--text-primary)]">{sub?.name || 'Unknown'}</p>
+                                        <p className="text-xs text-[var(--text-secondary)] mt-0.5">
+                                          {new Date(session.startTime).toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}
+                                        </p>
+                                      </div>
+                                    </div>
+                                    <div className="text-sm font-bold bg-[var(--bg-color)] px-3 py-1 rounded-full border border-[var(--border-color)] text-[var(--text-primary)] shrink-0">
+                                      {session.durationMinutes}m
+                                    </div>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                            <div className="p-4 border-t border-[var(--border-color)] mt-auto bg-[var(--bg-main)]/50 rounded-b-[calc(var(--radius-card)-1px)]">
+                              <Link to="/dashboard/sessions">
+                                <Button variant="ghost" className="w-full text-[var(--color-primary)] hover:text-[var(--color-primary)] hover:bg-[var(--color-primary)]/5 font-medium gap-2">
+                                  View all activity <ChevronRight className="h-4 w-4" />
+                                </Button>
+                              </Link>
+                            </div>
+                          </div>
+                        )}
+                      </motion.div>
+                    ) : (
+                      <motion.div 
+                        key="goals"
+                        initial={{ opacity: 0, x: 10 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        transition={{ duration: 0.2 }}
+                        className="flex flex-col h-full absolute inset-0"
+                      >
+                        {stats.activeGoals.length === 0 ? (
+                          <div className="flex-1 flex flex-col items-center justify-center p-8 text-center">
+                            <div className="h-12 w-12 rounded-full bg-[var(--border-color)]/30 flex items-center justify-center mb-3">
+                              <Target className="h-6 w-6 text-[var(--text-secondary)]" />
+                            </div>
+                            <p className="text-[var(--text-primary)] font-medium mb-1">No active goals</p>
+                            <Link to="/dashboard/goals" className="text-sm text-[var(--color-primary)] hover:underline">Create your first goal &rarr;</Link>
+                          </div>
+                        ) : (
+                          <div className="flex flex-col h-full">
+                            <div className="flex-1 overflow-y-auto p-5 space-y-4">
+                              {stats.activeGoals.map(goal => {
+                                const progress = goal.targetHours > 0 ? Math.min(100, Math.round((goal.completedHours / goal.targetHours) * 100)) : 0;
+                                const sub = subjects.find(s => s.id === goal.subjectId);
+                                return (
+                                  <div key={goal.id} className="p-4 rounded-[var(--radius-base)] bg-[var(--bg-main)] border border-[var(--border-color)] hover:border-[var(--color-primary)]/50 transition-colors space-y-3">
+                                    <div className="flex justify-between items-start gap-4">
+                                      <div>
+                                        <p className="text-sm font-bold text-[var(--text-primary)] line-clamp-1">{goal.title}</p>
+                                        <p className="text-xs text-[var(--text-secondary)] mt-0.5">{sub?.name || 'General Goal'}</p>
+                                      </div>
+                                      <div className="text-sm font-bold text-[var(--color-primary)] shrink-0">{progress}%</div>
+                                    </div>
+                                    <div className="h-2 w-full bg-[var(--border-color)]/50 rounded-full overflow-hidden">
+                                      <div className="h-full bg-[var(--color-success)] rounded-full transition-all duration-1000 ease-out" style={{ width: `${progress}%` }}></div>
+                                    </div>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                            <div className="p-4 border-t border-[var(--border-color)] mt-auto bg-[var(--bg-main)]/50 rounded-b-[calc(var(--radius-card)-1px)]">
+                              <Link to="/dashboard/goals">
+                                <Button variant="ghost" className="w-full text-[var(--color-primary)] hover:text-[var(--color-primary)] hover:bg-[var(--color-primary)]/5 font-medium gap-2">
+                                  View all goals <ChevronRight className="h-4 w-4" />
+                                </Button>
+                              </Link>
+                            </div>
+                          </div>
+                        )}
+                      </motion.div>
+                    )}
+                  </CardContent>
+                </Card>
+              </div>
+
+              <div className="xl:col-span-5 h-full">
+                {/* Upcoming Deadlines */}
+                <Card className="h-full flex flex-col shadow-soft border-[var(--border-color)]">
+                  <CardHeader className="pb-4 border-b border-[var(--border-color)]">
+                    <CardTitle className="text-sm font-bold uppercase tracking-wider flex items-center gap-2 text-[var(--text-secondary)]">
+                      <CalendarIcon className="h-4 w-4" /> Upcoming Deadlines
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="p-0 flex-1 flex flex-col min-h-[350px]">
+                    {stats.upcomingEvents.length === 0 ? (
+                      <div className="flex-1 flex flex-col items-center justify-center p-8 text-center">
+                        <div className="text-4xl mb-3">🎉</div>
+                        <p className="text-sm font-bold text-[var(--text-primary)]">No upcoming deadlines</p>
+                        <p className="text-xs text-[var(--text-secondary)] mt-1">You're all caught up!</p>
+                      </div>
+                    ) : (
+                      <div className="flex flex-col h-full">
+                        <div className="flex-1 p-5 space-y-4">
+                          {stats.upcomingEvents.map(event => {
+                            const eventDate = new Date(event.date);
+                            const isUrgent = (eventDate.getTime() - new Date().getTime()) / (1000 * 3600 * 24) <= 3;
+                            
+                            return (
+                              <div key={event.id} className="flex items-start gap-4">
+                                <div className={`h-10 w-10 rounded-full flex items-center justify-center shrink-0 ${isUrgent ? 'bg-[var(--color-error)]/10 text-[var(--color-error)]' : 'bg-[var(--bg-main)] text-[var(--color-primary)]'}`}>
+                                  <CalendarIcon className="h-4 w-4" />
+                                </div>
+                                <div className="flex-1 min-w-0 pt-0.5">
+                                  <p className="text-sm font-bold text-[var(--text-primary)] truncate">{event.title}</p>
+                                  <p className={`text-xs font-medium mt-0.5 ${isUrgent ? 'text-[var(--color-error)]' : 'text-[var(--text-secondary)]'}`}>
+                                    {eventDate.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
+                                    {isUrgent && ' (Soon)'}
+                                  </p>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                        <div className="p-4 border-t border-[var(--border-color)] mt-auto bg-[var(--bg-main)]/50 rounded-b-[calc(var(--radius-card)-1px)]">
+                          <Link to="/dashboard/calendar" className="text-xs font-semibold text-[var(--color-primary)] hover:underline flex items-center justify-center gap-1">
+                            View calendar <ChevronRight className="h-3 w-3" />
+                          </Link>
+                        </div>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              </div>
+            </motion.div>
+          )}
+
+        </AnimatePresence>
       </div>
     </motion.div>
   );

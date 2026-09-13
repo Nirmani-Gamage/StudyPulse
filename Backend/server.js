@@ -30,6 +30,8 @@ const analyticsRoutes = require("./routes/analyticsRoutes");
 const recommendationRoutes = require('./routes/recommendationRoutes');
 const aiPlannerRoutes = require('./routes/aiPlannerRoutes');
 
+const aiAnalyzerRoutes = require('./routes/aiAnalyzerRoutes');
+
 app.use("/api/auth", authRoutes);
 app.use("/api/user", userRoutes);
 app.use("/api/subjects", subjectRoutes);
@@ -40,7 +42,8 @@ app.use("/api/daily-tasks", dailyTaskRoutes);
 app.use("/api/journal", journalRoutes);
 app.use("/api/analytics", analyticsRoutes);
 app.use("/api/recommendations", recommendationRoutes);
-app.use("/api/ai-planner", aiPlannerRoutes);
+// app.use("/api/ai-planner", aiPlannerRoutes); // DEPRECATED
+app.use("/api/ai", aiAnalyzerRoutes);
 
 // Test route
 app.get("/", (req, res) => {

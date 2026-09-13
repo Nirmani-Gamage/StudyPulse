@@ -169,6 +169,12 @@ const createDailyTask = async (req, res) => {
 
     const taskDate = parseDateToUTCMidnight(date);
 
+    const now = new Date();
+    const todayUTCMidnight = new Date(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate()));
+    if (taskDate.getTime() < todayUTCMidnight.getTime()) {
+      return res.status(400).json({ message: "Cannot create a daily task for a past date" });
+    }
+
     const task = await DailyTask.create({
       userId,
       title: title.trim(),

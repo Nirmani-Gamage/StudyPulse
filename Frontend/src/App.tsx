@@ -18,6 +18,7 @@ import CalendarView from './pages/dashboard/Calendar';
 import Analytics from './pages/dashboard/Analytics';
 import Settings from './pages/dashboard/Settings';
 import { StudyJournal } from './pages/dashboard/StudyJournal';
+import AIAnalyzer from './pages/ai/AIAnalyzer';
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { isAuthenticated, isInitializing } = useAuth();
@@ -68,6 +69,7 @@ function App() {
                 <Route path="journal" element={<StudyJournal />} />
                 <Route path="analytics" element={<Analytics />} />
                 <Route path="settings" element={<Settings />} />
+                <Route path="ai-analyzer" element={<AIAnalyzer />} />
               </Route>
             </Route>
             </Routes>
