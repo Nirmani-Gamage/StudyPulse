@@ -12,6 +12,9 @@ interface ChatMessage {
   text: string;
   data?: CoachResponse;
   status?: 'sending' | 'success' | 'error';
+  errorCode?: string;
+  originalQuery?: string;
+  originalIntent?: CoachIntent | null;
 }
 
 const QUICK_ACTIONS = [
@@ -61,12 +64,17 @@ export default function AICoach() {
     scrollToBottom();
   }, [messages, isTyping]);
 
-  const handleSend = async (text: string, intent: CoachIntent | null = null) => {
+  const handleSend = async (text: string, intent: CoachIntent | null = null, existingErrorId?: string) => {
     if (!text.trim()) return;
 
-    const userMsgId = Date.now().toString();
-    setMessages(prev => [...prev, { id: userMsgId, sender: 'user', text, status: 'success' }]);
-    setInput('');
+    if (!existingErrorId) {
+      const userMsgId = Date.now().toString();
+      setMessages(prev => [...prev, { id: userMsgId, sender: 'user', text, status: 'success' }]);
+      setInput('');
+    } else {
+      setMessages(prev => prev.filter(m => m.id !== existingErrorId));
+    }
+    
     setIsTyping(true);
 
     try {
@@ -81,8 +89,13 @@ export default function AICoach() {
       setMessages(prev => [...prev, {
         id: Date.now().toString(),
         sender: 'coach',
-        text: error.message || 'Sorry, I am temporarily unavailable. Please try again shortly.',
-        status: 'error'
+        text: error.code === 'AI_SERVICE_TEMPORARILY_UNAVAILABLE' 
+          ? 'AI Coach is temporarily busy. We automatically retried your request, but the service is still unavailable. Please try again in a few moments.'
+          : (error.message || 'Sorry, I am temporarily unavailable. Please try again shortly.'),
+        status: 'error',
+        errorCode: error.code,
+        originalQuery: text,
+        originalIntent: intent
       }]);
     } finally {
       setIsTyping(false);
@@ -149,6 +162,18 @@ export default function AICoach() {
                       : 'bg-[var(--bg-color)] text-[var(--text-primary)] border border-[var(--border-color)] rounded-tl-sm'
                 }`}>
                   <p className="whitespace-pre-wrap">{msg.text}</p>
+                  
+                  {msg.status === 'error' && msg.errorCode === 'AI_SERVICE_TEMPORARILY_UNAVAILABLE' && (
+                    <div className="mt-3">
+                      <Button 
+                        onClick={() => handleSend(msg.originalQuery!, msg.originalIntent || null, msg.id)}
+                        disabled={isTyping}
+                        className="bg-red-500 hover:bg-red-600 text-white text-xs py-1 px-3 h-auto"
+                      >
+                        Try Again
+                      </Button>
+                    </div>
+                  )}
                 </div>
 
                 {/* Insights */}

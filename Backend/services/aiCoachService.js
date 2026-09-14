@@ -1,4 +1,5 @@
 const analyticsService = require('./analyticsService');
+const { callGeminiApi } = require('../utils/geminiClient');
 
 const SYSTEM_INSTRUCTION = `You are the StudyPulse AI Coach.
 Your purpose is to help students with their studies by analyzing their actual StudyPulse learning data.
@@ -37,7 +38,7 @@ async function callGemini(context, userMessage) {
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) throw new Error("GEMINI_API_KEY is not configured");
 
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=${apiKey}`;
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent?key=${apiKey}`;
 
   const fullContext = {
     studentData: context,
@@ -57,23 +58,7 @@ async function callGemini(context, userMessage) {
     }
   };
 
-  const response = await fetch(url, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload)
-  });
-
-  if (!response.ok) {
-    const text = await response.text();
-    throw new Error(`Gemini API Error: ${response.status} ${text}`);
-  }
-
-  const data = await response.json();
-  let content = data.candidates?.[0]?.content?.parts?.[0]?.text;
-  if (!content) throw new Error("Invalid response format from Gemini");
-  
-  content = content.replace(/^```json\s*/, '').replace(/\s*```$/, '').trim();
-  return JSON.parse(content);
+  return await callGeminiApi(url, payload);
 }
 
 exports.chat = async (userId, message, intent = null) => {
@@ -91,11 +76,14 @@ exports.chat = async (userId, message, intent = null) => {
     tasks: {
       completionRate: Math.round(metrics.tasks.completionRate)
     },
-    goals: metrics.goals.activeGoals.map(g => ({
-      subjectId: g.subjectId,
-      progress: Math.round(g.progress),
-      status: g.progress < 50 ? 'at_risk' : 'on_track' // Simplified status
-    })),
+    goals: (metrics.goals.activeList || []).map(g => {
+      const progress = g.targetHours > 0 ? (g.completedHours / g.targetHours) * 100 : 0;
+      return {
+        subjectId: g.subjectId,
+        progress: Math.round(progress),
+        status: progress < 50 ? 'at_risk' : 'on_track' // Simplified status
+      };
+    }),
     subjects: metrics.subjects.distribution.map(s => ({
       subjectId: s.subjectId,
       name: s.subjectName || "Unknown Subject",
@@ -108,14 +96,39 @@ exports.chat = async (userId, message, intent = null) => {
   // Note: If you want to include exams accurately, you need to pull from calendarEventController or pass it through analytics.
   // For simplicity and safety, we rely on the data provided by analyticsService.
 
-  // 3. Call Gemini
+  // 3. Call Gemini or Fallback
   let aiResponse;
   try {
     aiResponse = await callGemini(context, `User Intent: ${intent || 'UNKNOWN'}\nUser Message: ${message}`);
   } catch (error) {
-    console.error("AI Coach Error:", error.message);
     if (error.message === 'GEMINI_API_KEY is not configured') throw error;
-    throw new Error("AI Coach is temporarily unavailable. Please try again shortly.");
+    
+    if (error.message === 'TEMPORARY_UNAVAILABLE') {
+      console.log("[AI Coach] Attempting deterministic fallback");
+      
+      // Fallback logic
+      if (context.study.totalSessions > 0 || context.tasks.completionRate > 0) {
+        let fallbackMessage = "AI Coach is temporarily unavailable. Based on your recent study data, ";
+        if (context.study.studyDays < 3) {
+          fallbackMessage += "your study consistency has been low this week. Consider completing one focused study session today.";
+        } else if (context.tasks.completionRate < 50) {
+          fallbackMessage += "you have a low task completion rate. Try to break your tasks into smaller chunks.";
+        } else {
+          fallbackMessage += `you are doing well! You studied for ${context.study.totalHours} hours and completed ${context.tasks.completionRate}% of your tasks.`;
+        }
+
+        aiResponse = {
+          intent: "GENERAL_QUESTION",
+          message: fallbackMessage,
+          insights: []
+        };
+      } else {
+        throw new Error("AI_SERVICE_TEMPORARILY_UNAVAILABLE");
+      }
+    } else {
+      console.error("AI Coach Error:", error.message);
+      throw new Error("AI Coach is temporarily unavailable. Please try again shortly.");
+    }
   }
 
   // 4. Validate output

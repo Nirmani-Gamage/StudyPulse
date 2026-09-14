@@ -28,7 +28,9 @@ async function fetchApi(endpoint: string, options: RequestInit = {}) {
         window.dispatchEvent(new Event('auth:unauthorized'));
       }
       
-      throw new Error(data.message || 'An error occurred');
+      const err = new Error(data.message || 'An error occurred') as any;
+      if (data.error) err.code = data.error;
+      throw err;
     }
 
     return data;

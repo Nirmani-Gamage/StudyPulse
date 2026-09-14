@@ -168,6 +168,7 @@ exports.getLearningMetrics = async (userId, options = {}) => {
     goals: {
       total: totalGoals,
       active: activeGoals,
+      activeList: activeGoalsList,
       averageProgress
     },
     subjects: {

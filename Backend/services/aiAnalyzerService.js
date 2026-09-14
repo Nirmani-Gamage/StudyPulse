@@ -1,4 +1,5 @@
 const analyticsService = require('./analyticsService');
+const { callGeminiApi } = require('../utils/geminiClient');
 
 const SYSTEM_INSTRUCTION = `You are StudyPulse AI Analyzer.
 
@@ -70,8 +71,8 @@ async function callGemini(context) {
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) throw new Error("GEMINI_API_KEY is not configured");
 
-  // Based on the prompt condition, use gemini-3.6-flash which is the configured model.
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=${apiKey}`;
+  // Based on the prompt condition, use gemini-3.8-flash which is the configured model.
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent?key=${apiKey}`;
 
   const payload = {
     systemInstruction: {
@@ -86,25 +87,7 @@ async function callGemini(context) {
     }
   };
 
-  const response = await fetch(url, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload)
-  });
-
-  if (!response.ok) {
-    const text = await response.text();
-    throw new Error(`Gemini API Error: ${response.status} ${text}`);
-  }
-
-  const data = await response.json();
-  let content = data.candidates?.[0]?.content?.parts?.[0]?.text;
-  if (!content) throw new Error("Invalid response format from Gemini");
-  
-  // Strip markdown code block if present
-  content = content.replace(/^```json\s*/, '').replace(/\s*```$/, '').trim();
-
-  return JSON.parse(content);
+  return await callGeminiApi(url, payload);
 }
 
 exports.analyzeStudentData = async (userId, period = '30d') => {
@@ -168,6 +151,9 @@ exports.analyzeStudentData = async (userId, period = '30d') => {
   } catch (error) {
     console.error("AI Analyzer Error:", error.message);
     if (error.message === 'GEMINI_API_KEY is not configured') throw error;
+    if (error.message === 'TEMPORARY_UNAVAILABLE') {
+      throw new Error("AI_SERVICE_TEMPORARILY_UNAVAILABLE");
+    }
     throw new Error("AI analysis is temporarily unavailable. Please try again.");
   }
 

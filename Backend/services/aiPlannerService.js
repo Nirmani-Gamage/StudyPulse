@@ -3,6 +3,7 @@ const Goal = require('../models/Goal');
 const CalendarEvent = require('../models/CalendarEvent');
 const StudySession = require('../models/StudySession');
 const recommendationService = require('./recommendationService');
+const { callGeminiApi } = require('../utils/geminiClient');
 
 // Helper to fetch context for AI
 async function buildAIContext(userId, availableMinutes) {
@@ -130,7 +131,7 @@ async function callGemini(context) {
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) throw new Error("GEMINI_API_KEY is not configured");
 
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=${apiKey}`;
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent?key=${apiKey}`;
 
   const payload = {
     systemInstruction: {
@@ -145,25 +146,7 @@ async function callGemini(context) {
     }
   };
 
-  const response = await fetch(url, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload)
-  });
-
-  if (!response.ok) {
-    const text = await response.text();
-    throw new Error(`Gemini API Error: ${response.status} ${text}`);
-  }
-
-  const data = await response.json();
-  let content = data.candidates?.[0]?.content?.parts?.[0]?.text;
-  if (!content) throw new Error("Invalid response format from Gemini");
-  
-  // Strip markdown code block if present
-  content = content.replace(/^```json\s*/, '').replace(/\s*```$/, '').trim();
-
-  return JSON.parse(content);
+  return await callGeminiApi(url, payload);
 }
 
 exports.generateDailyPlan = async (userId, availableMinutes) => {
@@ -178,6 +161,9 @@ exports.generateDailyPlan = async (userId, availableMinutes) => {
   } catch (error) {
     console.error("AI Generation Error:", error.message);
     if (error.message === 'GEMINI_API_KEY is not configured') throw error;
+    if (error.message === 'TEMPORARY_UNAVAILABLE') {
+      throw new Error("AI_SERVICE_TEMPORARILY_UNAVAILABLE");
+    }
     throw new Error("AI planning is temporarily unavailable. Please try again.");
   }
 

@@ -20,7 +20,16 @@ exports.chat = async (req, res) => {
       data: response
     });
   } catch (error) {
-    console.error("AI Coach Controller Error:", error);
+    console.error("AI Coach Controller Error:", error.message);
+    
+    if (error.message === 'AI_SERVICE_TEMPORARILY_UNAVAILABLE') {
+      return res.status(503).json({
+        success: false,
+        error: "AI_SERVICE_TEMPORARILY_UNAVAILABLE",
+        message: "The AI Coach is temporarily busy. Please try again in a few moments."
+      });
+    }
+
     res.status(503).json({
       success: false,
       message: error.message || "AI Coach is temporarily unavailable."
