@@ -19,6 +19,7 @@ import Analytics from './pages/dashboard/Analytics';
 import Settings from './pages/dashboard/Settings';
 import { StudyJournal } from './pages/dashboard/StudyJournal';
 import AIAnalyzer from './pages/ai/AIAnalyzer';
+import AICoach from './pages/ai/AICoach';
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { isAuthenticated, isInitializing } = useAuth();
@@ -70,6 +71,7 @@ function App() {
                 <Route path="analytics" element={<Analytics />} />
                 <Route path="settings" element={<Settings />} />
                 <Route path="ai-analyzer" element={<AIAnalyzer />} />
+                <Route path="ai-coach" element={<AICoach />} />
               </Route>
             </Route>
             </Routes>

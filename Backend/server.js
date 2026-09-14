@@ -31,6 +31,7 @@ const recommendationRoutes = require('./routes/recommendationRoutes');
 const aiPlannerRoutes = require('./routes/aiPlannerRoutes');
 
 const aiAnalyzerRoutes = require('./routes/aiAnalyzerRoutes');
+const aiCoachRoutes = require('./routes/aiCoachRoutes');
 
 app.use("/api/auth", authRoutes);
 app.use("/api/user", userRoutes);
@@ -44,6 +45,7 @@ app.use("/api/analytics", analyticsRoutes);
 app.use("/api/recommendations", recommendationRoutes);
 // app.use("/api/ai-planner", aiPlannerRoutes); // DEPRECATED
 app.use("/api/ai", aiAnalyzerRoutes);
+app.use("/api/ai-coach", aiCoachRoutes);
 
 // Test route
 app.get("/", (req, res) => {
