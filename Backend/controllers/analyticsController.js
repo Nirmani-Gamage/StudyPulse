@@ -22,7 +22,7 @@ exports.getLearningEffectiveness = async (req, res) => {
     const effectiveness = effectivenessService.calculateEffectiveness(rawMetrics);
 
     // 3. Generate recommendations based on the scores
-    const recommendations = recommendationService.generateRecommendations(effectiveness);
+    const recommendations = await recommendationService.generateRecommendations(userId, { limit: 3 });
 
     // 4. Return unified JSON
     res.status(200).json({

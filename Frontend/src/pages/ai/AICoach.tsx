@@ -34,6 +34,7 @@ export default function AICoach() {
   
   const [input, setInput] = useState('');
   const [isTyping, setIsTyping] = useState(false);
+  const isTypingRef = useRef(false);
   const [subjects, setSubjects] = useState<Record<string, string>>({});
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -65,6 +66,7 @@ export default function AICoach() {
   }, [messages, isTyping]);
 
   const handleSend = async (text: string, intent: CoachIntent | null = null, existingErrorId?: string) => {
+    if (isTypingRef.current) return;
     if (!text.trim()) return;
 
     if (!existingErrorId) {
@@ -76,6 +78,7 @@ export default function AICoach() {
     }
     
     setIsTyping(true);
+    isTypingRef.current = true;
 
     try {
       const response = await aiCoachApi.sendMessage(text, intent);
@@ -99,6 +102,7 @@ export default function AICoach() {
       }]);
     } finally {
       setIsTyping(false);
+      isTypingRef.current = false;
     }
   };
 

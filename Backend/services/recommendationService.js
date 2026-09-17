@@ -18,6 +18,11 @@ const getPriority = (score) => {
  * Retrieves all context needed for recommendations using parallel queries
  */
 const getRecommendationContext = async (userId, options) => {
+  if (!mongoose.Types.ObjectId.isValid(userId)) {
+    console.error(`[recommendationService] Invalid userId passed to getRecommendationContext. Type: ${typeof userId}, Value:`, JSON.stringify(userId).substring(0, 200));
+    throw new Error('Invalid userId parameter');
+  }
+
   const now = new Date();
   
   // 14 days ago for recent study history

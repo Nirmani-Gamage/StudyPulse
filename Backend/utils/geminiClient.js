@@ -52,7 +52,14 @@ async function callGeminiApi(url, payload) {
         const isTemporary = status === 503 || status === 429 || status >= 500;
         
         if (isTemporary) {
-          throw new Error(`TEMPORARY_ERROR_${status}: ${text}`);
+          const err = new Error(`TEMPORARY_ERROR_${status}: ${text}`);
+          if (status === 429) {
+             const retryAfter = response.headers.get('retry-after');
+             if (retryAfter) {
+                err.retryAfter = retryAfter;
+             }
+          }
+          throw err;
         } else {
           // Permanent error (e.g. 400, 401, 403, 404)
           throw new Error(`PERMANENT_ERROR_${status}: ${text}`);
@@ -67,7 +74,24 @@ async function callGeminiApi(url, payload) {
         error.message.includes('TEMPORARY_ERROR');
 
       if (isNetworkOrTemporary && attempt < MAX_RETRIES) {
-        const delay = RETRY_DELAYS[attempt];
+        let delay = RETRY_DELAYS[attempt];
+        
+        if (error.retryAfter) {
+          const parsedRetry = parseInt(error.retryAfter, 10);
+          if (!isNaN(parsedRetry)) {
+            delay = parsedRetry * 1000;
+          } else {
+            const date = new Date(error.retryAfter);
+            if (!isNaN(date.getTime())) {
+               delay = date.getTime() - Date.now();
+               if (delay < 0) delay = RETRY_DELAYS[attempt];
+            }
+          }
+        }
+        
+        // Cap the delay so we don't wait indefinitely, max 30 seconds
+        if (delay > 30000) delay = 30000;
+
         console.log(`[AI Coach] Temporary error - retrying in ${delay / 1000} seconds`);
         await new Promise(resolve => setTimeout(resolve, delay));
         attempt++;
